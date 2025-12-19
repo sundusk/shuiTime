@@ -7,7 +7,7 @@
 
 import SwiftUI
 import SwiftData
-import UIKit // 需要引入 UIKit 来支持 UIScrollView
+import UIKit
 
 // MARK: - 1. 全屏图片的数据包装器
 struct FullScreenImage: Identifiable {
@@ -15,21 +15,19 @@ struct FullScreenImage: Identifiable {
     let image: UIImage
 }
 
-// MARK: - 2. 新增：支持缩放的图片视图 (UIViewRepresentable)
+// MARK: - 2. 支持缩放的图片视图
 struct ZoomableImageView: UIViewRepresentable {
     var image: UIImage
     
     func makeUIView(context: Context) -> UIScrollView {
-        // 配置 ScrollView
         let scrollView = UIScrollView()
         scrollView.delegate = context.coordinator
-        scrollView.maximumZoomScale = 4.0 // 最大放大倍数
-        scrollView.minimumZoomScale = 1.0 // 最小缩小倍数
+        scrollView.maximumZoomScale = 4.0
+        scrollView.minimumZoomScale = 1.0
         scrollView.showsVerticalScrollIndicator = false
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.backgroundColor = .clear
         
-        // 配置 ImageView
         let imageView = UIImageView(image: image)
         imageView.contentMode = .scaleAspectFit
         imageView.clipsToBounds = true
@@ -38,7 +36,6 @@ struct ZoomableImageView: UIViewRepresentable {
         scrollView.addSubview(imageView)
         context.coordinator.imageView = imageView
         
-        // 添加布局约束：让 ImageView 初始大小填满 ScrollView
         NSLayoutConstraint.activate([
             imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
             imageView.heightAnchor.constraint(equalTo: scrollView.heightAnchor),
@@ -49,22 +46,13 @@ struct ZoomableImageView: UIViewRepresentable {
         return scrollView
     }
     
-    func updateUIView(_ uiView: UIScrollView, context: Context) {
-        // 这里不需要频繁更新，因为图片是静态的
-    }
+    func updateUIView(_ uiView: UIScrollView, context: Context) {}
     
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
     
-    // 代理协调器：处理缩放逻辑
     class Coordinator: NSObject, UIScrollViewDelegate {
         var imageView: UIImageView?
-        
-        // 告诉 ScrollView 哪个视图需要被缩放
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-            return imageView
-        }
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? { return imageView }
     }
 }
 
@@ -75,14 +63,9 @@ struct FullScreenPhotoView: View {
     
     var body: some View {
         ZStack {
-            // 黑色背景
             Color.black.ignoresSafeArea()
+            ZoomableImageView(image: image).ignoresSafeArea()
             
-            // 🔥 使用支持缩放的图片视图
-            ZoomableImageView(image: image)
-                .ignoresSafeArea() // 让图片可以全屏展示
-            
-            // 关闭按钮
             VStack {
                 HStack {
                     Spacer()
@@ -91,13 +74,12 @@ struct FullScreenPhotoView: View {
                             .font(.system(size: 30))
                             .foregroundColor(.white.opacity(0.8))
                             .padding()
-                            .padding(.top, 40) // 避开刘海屏
+                            .padding(.top, 40)
                     }
                 }
                 Spacer()
             }
         }
-        // 点击背景也可以关闭（可选，看个人喜好，有时会和缩放手势冲突，这里主要依靠关闭按钮）
     }
 }
 
@@ -106,11 +88,8 @@ struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var showSideMenu: Bool
     
-    // 日期状态
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
-    
-    // 控制全屏图片的状态
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
@@ -118,13 +97,14 @@ struct TimeLineView: View {
             ZStack(alignment: .bottom) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 
-                // 将点击回调传入 TimelineListView
                 TimelineListView(date: selectedDate, onImageTap: { image in
-                    // 触发全屏显示
                     fullScreenImage = FullScreenImage(image: image)
                 })
                 
-                InputBarView()
+                // 仅在今天显示输入框
+                if Calendar.current.isDateInToday(selectedDate) {
+                    InputBarView()
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -133,7 +113,6 @@ struct TimeLineView: View {
                         Image(systemName: "line.3.horizontal").foregroundColor(.primary)
                     }
                 }
-                
                 ToolbarItem(placement: .principal) {
                     Button(action: { showCalendar = true }) {
                         HStack(spacing: 4) {
@@ -146,7 +125,6 @@ struct TimeLineView: View {
                         }
                     }
                 }
-                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { withAnimation { selectedDate = Date() } }) {
                         Text("今天").font(.subheadline)
@@ -162,7 +140,6 @@ struct TimeLineView: View {
                         .presentationDetents([.medium])
                 }
             }
-            // 全屏图片覆盖层
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
@@ -172,9 +149,7 @@ struct TimeLineView: View {
     func dateString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY年MM月dd日"
-        if Calendar.current.isDateInToday(date) {
-            return "今日"
-        }
+        if Calendar.current.isDateInToday(date) { return "今日" }
         return formatter.string(from: date)
     }
 }
@@ -184,12 +159,9 @@ struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
     
-    // 状态管理
     @State private var itemToEdit: TimelineItem?
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
-    
-    // 接收点击回调
     var onImageTap: (UIImage) -> Void
     
     init(date: Date, onImageTap: @escaping (UIImage) -> Void) {
@@ -199,9 +171,12 @@ struct TimelineListView: View {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
+        // 🔥 核心修改：增加条件 item.type == "timeline"
         _items = Query(
             filter: #Predicate<TimelineItem> { item in
-                item.timestamp >= startOfDay && item.timestamp < endOfDay
+                item.timestamp >= startOfDay &&
+                item.timestamp < endOfDay &&
+                item.type == "timeline"
             },
             sort: \.timestamp,
             order: .reverse
@@ -217,22 +192,16 @@ struct TimelineListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     Spacer().frame(height: 20)
-                    
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        TimelineRowView(
-                            item: item,
-                            isLast: index == items.count - 1,
-                            onImageTap: onImageTap
-                        )
-                        .contextMenu {
-                            Button { itemToEdit = item } label: { Label("修改", systemImage: "pencil") }
-                            Button(role: .destructive) {
-                                itemToDelete = item
-                                showDeleteAlert = true
-                            } label: { Label("删除", systemImage: "trash") }
-                        }
+                        TimelineRowView(item: item, isLast: index == items.count - 1, onImageTap: onImageTap)
+                            .contextMenu {
+                                Button { itemToEdit = item } label: { Label("修改", systemImage: "pencil") }
+                                Button(role: .destructive) {
+                                    itemToDelete = item
+                                    showDeleteAlert = true
+                                } label: { Label("删除", systemImage: "trash") }
+                            }
                     }
-                    
                     Spacer().frame(height: 100)
                 }
                 .padding(.horizontal)
@@ -244,13 +213,9 @@ struct TimelineListView: View {
             .alert("确认删除?", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) { itemToDelete = nil }
                 Button("删除", role: .destructive) {
-                    if let item = itemToDelete {
-                        deleteItem(item)
-                    }
+                    if let item = itemToDelete { deleteItem(item) }
                 }
-            } message: {
-                Text("删除后将无法恢复这条记录。")
-            }
+            } message: { Text("删除后将无法恢复这条记录。") }
         }
     }
     
@@ -271,64 +236,36 @@ struct TimelineRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // 时间轴线
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.blue.opacity(0.3))
-                    .frame(width: 2, height: 15)
-                Circle()
-                    .fill(Color.blue)
-                    .frame(width: 10, height: 10)
+                Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
+                Circle().fill(Color.blue).frame(width: 10, height: 10)
                     .overlay(Circle().stroke(Color(uiColor: .systemGroupedBackground), lineWidth: 2))
                 if !isLast {
-                    Rectangle()
-                        .fill(Color.blue.opacity(0.3))
-                        .frame(width: 2)
-                        .frame(maxHeight: .infinity)
-                } else {
-                    Spacer()
-                }
+                    Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2).frame(maxHeight: .infinity)
+                } else { Spacer() }
             }
             .frame(width: 20)
             
-            // 内容区域
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 10)
+                    .font(.caption).foregroundColor(.secondary).padding(.top, 10)
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    // 图片展示
                     if let data = item.imageData, let uiImage = UIImage(data: data) {
                         Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 160)
-                            .frame(maxWidth: .infinity)
-                            .cornerRadius(8)
-                            .clipped()
-                            // 点击手势
-                            .onTapGesture {
-                                onImageTap?(uiImage)
-                            }
+                            .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
+                            .cornerRadius(8).clipped()
+                            .onTapGesture { onImageTap?(uiImage) }
                     }
-                    // 文字展示
                     if !item.content.isEmpty {
                         HStack(alignment: .top) {
-                            Image(systemName: item.iconName)
-                                .foregroundColor(.brown)
-                            Text(item.content)
-                                .font(.body)
-                                .foregroundColor(.primary)
-                                .lineLimit(nil)
+                            Image(systemName: item.iconName).foregroundColor(.brown)
+                            Text(item.content).font(.body).foregroundColor(.primary).lineLimit(nil)
                         }
                     }
                 }
-                .padding(12)
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .padding(12).background(Color(uiColor: .secondarySystemGroupedBackground))
+                .cornerRadius(12).shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
                 .contentShape(Rectangle())
                 .padding(.bottom, 20)
             }
@@ -337,7 +274,7 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 7. 输入栏 (保持不变)
+// MARK: - 7. 输入栏
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var inputText: String = ""
@@ -350,20 +287,14 @@ struct InputBarView: View {
         VStack(alignment: .leading, spacing: 12) {
             if let image = selectedImage {
                 HStack(alignment: .top) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .cornerRadius(10)
-                        .clipped()
+                    Image(uiImage: image).resizable().scaledToFill().frame(width: 80, height: 80)
+                        .cornerRadius(10).clipped()
                         .overlay(
                             Button(action: { withAnimation { selectedImage = nil } }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.white)
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.white)
                                     .background(Circle().fill(Color.black.opacity(0.5)))
                             }
-                            .offset(x: 5, y: -5),
-                            alignment: .topTrailing
+                            .offset(x: 5, y: -5), alignment: .topTrailing
                         )
                     Spacer()
                 }
@@ -372,38 +303,22 @@ struct InputBarView: View {
             
             HStack(alignment: .bottom) {
                 TextField("现在在想什么? (记入时间轴)", text: $inputText, axis: .vertical)
-                    .focused($isInputFocused)
-                    .padding(10)
-                    .background(Color(uiColor: .secondarySystemFill))
-                    .cornerRadius(15)
-                    .lineLimit(1...4)
+                    .focused($isInputFocused).padding(10)
+                    .background(Color(uiColor: .secondarySystemFill)).cornerRadius(15).lineLimit(1...4)
                 
-                Button(action: {
-                    sourceType = .photoLibrary
-                    showImagePicker = true
-                }) {
-                    Image(systemName: "photo")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                        .padding(.bottom, 8)
+                Button(action: { sourceType = .photoLibrary; showImagePicker = true }) {
+                    Image(systemName: "photo").font(.title3).foregroundColor(.secondary).padding(.bottom, 8)
                 }
                 
                 if !inputText.isEmpty || selectedImage != nil {
                     Button(action: saveItem) {
-                        Image(systemName: "paperplane.fill")
-                            .font(.title3)
-                            .foregroundColor(.blue)
-                            .padding(.bottom, 8)
+                        Image(systemName: "paperplane.fill").font(.title3).foregroundColor(.blue).padding(.bottom, 8)
                     }
                 }
             }
-            .padding(.horizontal)
-            .padding(.bottom, 10)
+            .padding(.horizontal).padding(.bottom, 10)
         }
-        .padding(.top, 10)
-        .background(.ultraThinMaterial)
-        .cornerRadius(25)
-        .padding()
+        .padding(.top, 10).background(.ultraThinMaterial).cornerRadius(25).padding()
         .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
@@ -415,11 +330,13 @@ struct InputBarView: View {
         let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         let icon = imageData != nil ? "photo" : "text.bubble"
         
+        // 🔥 核心修改：明确指定 type 为 "timeline"
         let newItem = TimelineItem(
             content: inputText,
             iconName: icon,
             timestamp: Date(),
-            imageData: imageData
+            imageData: imageData,
+            type: "timeline"
         )
         modelContext.insert(newItem)
         try? modelContext.save()
@@ -431,19 +348,12 @@ struct InputBarView: View {
     }
 }
 
-// MARK: - 8. 空状态视图
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.3))
-            Text("这一天没有记录")
-                .font(.title2)
-                .foregroundColor(.gray)
-            Text("时间流淌，静水流深")
-                .font(.footnote)
-                .foregroundColor(.gray.opacity(0.6))
+            Image(systemName: "calendar.badge.clock").font(.system(size: 80)).foregroundColor(.gray.opacity(0.3))
+            Text("这一天没有记录").font(.title2).foregroundColor(.gray)
+            Text("时间流淌，静水流深").font(.footnote).foregroundColor(.gray.opacity(0.6))
         }
         .offset(y: -40)
     }
