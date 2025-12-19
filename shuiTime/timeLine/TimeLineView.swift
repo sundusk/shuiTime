@@ -196,25 +196,23 @@ struct TimelineRowView: View {
                             .onTapGesture { onImageTap?(uiImage) }
                     }
                     
-                    // 文字混排
+                    // 文字混排 (支持富文本)
                     if !item.content.isEmpty {
                         TimelineTagLayout(spacing: 6) {
-                            // 🔥 这里是闪光点图标的显示逻辑
+                            // 🔥 修改：闪光点图标 (星星 -> 灯泡)
                             if item.isHighlight {
-                                Image(systemName: "star.fill")
+                                Image(systemName: "lightbulb.fill")
                                     .font(.subheadline)
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(.yellow)
                                     .padding(.top, 2)
                             }
                             
-                            let segments = parseContent(item.content)
-                            ForEach(segments.indices, id: \.self) { index in
-                                let segment = segments[index]
+                            let segments = parseContent(item)
+                            ForEach(segments) { segment in
                                 if segment.isTag {
                                     NavigationLink(destination: TagFilterView(tagName: segment.text)) {
-                                        Text(segment.text)
+                                        Text(segment.attributedText)
                                             .font(.subheadline)
-                                            .foregroundColor(.blue)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
                                             .background(Color.blue.opacity(0.1))
@@ -222,7 +220,7 @@ struct TimelineRowView: View {
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    Text(segment.text)
+                                    Text(segment.attributedText)
                                         .font(.body)
                                         .foregroundColor(.primary)
                                 }
@@ -232,10 +230,10 @@ struct TimelineRowView: View {
                 }
                 .padding(12).background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(12).shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                // 🔥 如果是高亮状态，可以加个金色边框或阴影增强提示
+                // 🔥 修改：高亮边框颜色
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(item.isHighlight ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 2)
+                        .stroke(item.isHighlight ? Color.yellow.opacity(0.5) : Color.clear, lineWidth: 2)
                 )
                 .padding(.bottom, 20)
             }
@@ -243,22 +241,78 @@ struct TimelineRowView: View {
         }
     }
     
-    // 解析逻辑
-    func parseContent(_ text: String) -> [TimelineContentSegment] {
+    func parseContent(_ item: TimelineItem) -> [TimelineContentSegment] {
+        if let data = item.richContentData,
+           let nsAttr = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSAttributedString.self, from: data) {
+            return splitRichTextIntoSegments(nsAttr)
+        }
+        return splitPlainTextIntoSegments(item.content)
+    }
+    
+    private func splitRichTextIntoSegments(_ nsAttr: NSAttributedString) -> [TimelineContentSegment] {
+        var segments: [TimelineContentSegment] = []
+        let string = nsAttr.string
+        let nsString = string as NSString
+        var currentIndex = 0
+        
+        while currentIndex < nsString.length {
+            let remainingRange = NSRange(location: currentIndex, length: nsString.length - currentIndex)
+            let rangeOfSpace = nsString.rangeOfCharacter(from: .whitespacesAndNewlines, options: [], range: remainingRange)
+            
+            let segmentRange: NSRange
+            let separatorRange: NSRange
+            
+            if rangeOfSpace.location == NSNotFound {
+                segmentRange = remainingRange
+                separatorRange = NSRange(location: nsString.length, length: 0)
+            } else {
+                segmentRange = NSRange(location: currentIndex, length: rangeOfSpace.location - currentIndex)
+                separatorRange = rangeOfSpace
+            }
+            
+            if segmentRange.length > 0 {
+                let wordSubAttr = nsAttr.attributedSubstring(from: segmentRange)
+                let wordString = wordSubAttr.string
+                let swiftUIAttributed = AttributedString(wordSubAttr)
+                
+                if wordString.hasPrefix("#") && wordString.count > 1 {
+                    segments.append(TimelineContentSegment(text: wordString, attributedText: swiftUIAttributed, isTag: true))
+                } else {
+                    segments.append(TimelineContentSegment(text: wordString, attributedText: swiftUIAttributed, isTag: false))
+                }
+            }
+            
+            if separatorRange.length > 0 {
+                let sepSubAttr = nsAttr.attributedSubstring(from: separatorRange)
+                let swiftUIAttributed = AttributedString(sepSubAttr)
+                segments.append(TimelineContentSegment(text: sepSubAttr.string, attributedText: swiftUIAttributed, isTag: false))
+            }
+            
+            currentIndex = segmentRange.upperBound + separatorRange.length
+        }
+        return segments
+    }
+    
+    private func splitPlainTextIntoSegments(_ text: String) -> [TimelineContentSegment] {
         var segments: [TimelineContentSegment] = []
         let lines = text.components(separatedBy: "\n")
         for (lineIndex, line) in lines.enumerated() {
             let words = line.split(separator: " ", omittingEmptySubsequences: false)
             for (wordIndex, word) in words.enumerated() {
                 let stringWord = String(word)
+                let attr = AttributedString(stringWord)
                 if stringWord.hasPrefix("#") && stringWord.count > 1 {
-                    segments.append(TimelineContentSegment(text: stringWord, isTag: true))
+                    segments.append(TimelineContentSegment(text: stringWord, attributedText: attr, isTag: true))
                 } else if !stringWord.isEmpty {
-                    segments.append(TimelineContentSegment(text: stringWord, isTag: false))
+                    segments.append(TimelineContentSegment(text: stringWord, attributedText: attr, isTag: false))
                 }
-                if wordIndex < words.count - 1 { segments.append(TimelineContentSegment(text: " ", isTag: false)) }
+                if wordIndex < words.count - 1 {
+                    segments.append(TimelineContentSegment(text: " ", attributedText: AttributedString(" "), isTag: false))
+                }
             }
-            if lineIndex < lines.count - 1 { segments.append(TimelineContentSegment(text: "\n", isTag: false)) }
+            if lineIndex < lines.count - 1 {
+                segments.append(TimelineContentSegment(text: "\n", attributedText: AttributedString("\n"), isTag: false))
+            }
         }
         return segments
     }
@@ -275,10 +329,10 @@ struct EmptyStateView: View {
     }
 }
 
-// 辅助结构
 struct TimelineContentSegment: Identifiable {
     let id = UUID()
     let text: String
+    let attributedText: AttributedString
     let isTag: Bool
 }
 

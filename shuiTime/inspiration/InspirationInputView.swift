@@ -25,11 +25,12 @@ struct InspirationInputView: View {
     // 输入状态
     @State private var attributedText = NSMutableAttributedString(string: "")
     @State private var isBold: Bool = false
+    @State private var isStrikethrough: Bool = false
     @State private var showKeyboard: Bool = false
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
     
-    // 🔥 新增：闪光点状态
+    // 🔥 闪光点状态
     @State private var isHighlight: Bool = false
     
     var body: some View {
@@ -46,7 +47,7 @@ struct InspirationInputView: View {
                         .padding(.leading, 8)
                         .allowsHitTesting(false)
                 }
-                RichTextEditor(text: $attributedText, isBold: $isBold, showKeyboard: $showKeyboard)
+                RichTextEditor(text: $attributedText, isBold: $isBold, isStrikethrough: $isStrikethrough, showKeyboard: $showKeyboard)
                     .padding(4)
             }
             .padding(.horizontal)
@@ -76,24 +77,30 @@ struct InspirationInputView: View {
                 
                 Divider()
                 
-                HStack(spacing: 24) {
+                HStack(spacing: 20) {
                     Button(action: insertHashTag) { Image(systemName: "number").font(.title3).foregroundColor(.primary) }
                     Button(action: {
                         showKeyboard = false
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showImagePicker = true }
                     }) { Image(systemName: "photo").font(.title3).foregroundColor(.primary) }
                     
-                    // 🔥 新增：闪光点开关按钮
+                    // 🔥 修改：闪光点开关按钮 (星星 -> 灯泡)
                     Button(action: { withAnimation { isHighlight.toggle() } }) {
-                        Image(systemName: isHighlight ? "star.fill" : "star")
+                        Image(systemName: isHighlight ? "lightbulb.fill" : "lightbulb")
                             .font(.title3)
-                            .foregroundColor(isHighlight ? .orange : .primary)
+                            .foregroundColor(isHighlight ? .yellow : .primary)
                     }
                     
                     Button(action: { isBold.toggle() }) {
                         Image(systemName: "bold").font(.title3)
                             .foregroundColor(isBold ? .blue : .primary)
                             .padding(4).background(isBold ? Color.blue.opacity(0.1) : Color.clear).cornerRadius(4)
+                    }
+                    
+                    Button(action: { isStrikethrough.toggle() }) {
+                        Image(systemName: "strikethrough").font(.title3)
+                            .foregroundColor(isStrikethrough ? .blue : .primary)
+                            .padding(4).background(isStrikethrough ? Color.blue.opacity(0.1) : Color.clear).cornerRadius(4)
                     }
                     
                     Button(action: insertBulletPoint) { Image(systemName: "list.bullet").font(.title3).foregroundColor(.primary) }
@@ -127,18 +134,21 @@ struct InspirationInputView: View {
     // 初始化内容逻辑
     private func setupInitialContent() {
         if let item = itemToEdit {
-            // 修改模式：回填旧数据
             if let data = item.imageData { selectedImage = UIImage(data: data) }
-            // 🔥 回填高亮状态
             isHighlight = item.isHighlight
-            applyStyle(to: item.content)
+            
+            if let richData = item.richContentData,
+               let nsAttr = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSAttributedString.self, from: richData) {
+                attributedText = NSMutableAttributedString(attributedString: nsAttr)
+            } else {
+                applyStyle(to: item.content)
+            }
         } else if !initialContent.isEmpty {
             let textToFill = initialContent.hasSuffix(" ") ? initialContent : initialContent + " "
             applyStyle(to: textToFill)
         }
     }
     
-    // 统一的样式应用逻辑
     private func applyStyle(to content: String) {
         let attr = NSMutableAttributedString(string: content)
         let fullRange = NSRange(location: 0, length: attr.length)
@@ -160,7 +170,8 @@ struct InspirationInputView: View {
         let current = NSMutableAttributedString(attributedString: attributedText)
         let hashString = NSAttributedString(string: "#", attributes: [
             .font: isBold ? UIFont.boldSystemFont(ofSize: 17) : UIFont.systemFont(ofSize: 17),
-            .foregroundColor: UIColor.systemBlue
+            .foregroundColor: UIColor.systemBlue,
+            .strikethroughStyle: isStrikethrough ? NSUnderlineStyle.single.rawValue : 0
         ])
         current.append(hashString)
         attributedText = current
@@ -172,7 +183,8 @@ struct InspirationInputView: View {
         let prefix = current.string.hasSuffix("\n") || current.string.isEmpty ? "" : "\n"
         let bullet = NSAttributedString(string: "\(prefix)- ", attributes: [
             .font: isBold ? UIFont.boldSystemFont(ofSize: 17) : UIFont.systemFont(ofSize: 17),
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.label,
+            .strikethroughStyle: isStrikethrough ? NSUnderlineStyle.single.rawValue : 0
         ])
         current.append(bullet)
         attributedText = current
@@ -182,11 +194,12 @@ struct InspirationInputView: View {
     private func saveInspiration() {
         let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         let plainText = attributedText.string
+        let richData = try? NSKeyedArchiver.archivedData(withRootObject: attributedText, requiringSecureCoding: false)
         
         if let existingItem = itemToEdit {
             existingItem.content = plainText
+            existingItem.richContentData = richData
             existingItem.imageData = imageData
-            // 🔥 更新高亮状态
             existingItem.isHighlight = isHighlight
         } else {
             var icon = "lightbulb.fill"
@@ -200,8 +213,8 @@ struct InspirationInputView: View {
                 timestamp: Date(),
                 imageData: imageData,
                 type: createType,
-                // 🔥 保存高亮状态
-                isHighlight: isHighlight
+                isHighlight: isHighlight,
+                richContentData: richData
             )
             modelContext.insert(newItem)
         }
@@ -215,6 +228,7 @@ struct InspirationInputView: View {
 struct RichTextEditor: UIViewRepresentable {
     @Binding var text: NSMutableAttributedString
     @Binding var isBold: Bool
+    @Binding var isStrikethrough: Bool
     @Binding var showKeyboard: Bool
     
     func makeUIView(context: Context) -> UITextView {
@@ -235,7 +249,9 @@ struct RichTextEditor: UIViewRepresentable {
         } else {
             if uiView.isFirstResponder { DispatchQueue.main.async { uiView.resignFirstResponder() } }
         }
-        if uiView.attributedText.string != text.string { uiView.attributedText = text }
+        if uiView.attributedText.string != text.string || uiView.attributedText != text {
+            uiView.attributedText = text
+        }
         context.coordinator.updateTypingAttributes(textView: uiView)
     }
     
@@ -248,6 +264,12 @@ struct RichTextEditor: UIViewRepresentable {
         func updateTypingAttributes(textView: UITextView) {
             var attributes: [NSAttributedString.Key: Any] = [:]
             attributes[.font] = parent.isBold ? UIFont.boldSystemFont(ofSize: 17) : UIFont.systemFont(ofSize: 17)
+            
+            if parent.isStrikethrough {
+                attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+            } else {
+                attributes[.strikethroughStyle] = 0
+            }
             
             let selectedRange = textView.selectedRange
             let cursorIndex = selectedRange.location

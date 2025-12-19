@@ -14,12 +14,15 @@ final class TimelineItem {
     var content: String
     var iconName: String
     var type: String
-    // 🔥 新增：是否为高亮/闪光点
+    // 🔥 New: Highlight status
     var isHighlight: Bool
     
     @Attribute(.externalStorage) var imageData: Data?
     
-    init(content: String, iconName: String = "circle.fill", timestamp: Date = Date(), imageData: Data? = nil, type: String = "timeline", isHighlight: Bool = false) {
+    // 🔥 New: Store rich text data (Bold, Strikethrough, etc.)
+    @Attribute(.externalStorage) var richContentData: Data?
+    
+    init(content: String, iconName: String = "circle.fill", timestamp: Date = Date(), imageData: Data? = nil, type: String = "timeline", isHighlight: Bool = false, richContentData: Data? = nil) {
         self.id = UUID()
         self.content = content
         self.iconName = iconName
@@ -27,5 +30,6 @@ final class TimelineItem {
         self.imageData = imageData
         self.type = type
         self.isHighlight = isHighlight
+        self.richContentData = richContentData
     }
 }

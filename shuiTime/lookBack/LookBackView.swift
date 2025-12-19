@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct LookBackView: View {
     @Environment(\.modelContext) private var modelContext
@@ -20,8 +21,10 @@ struct LookBackView: View {
     // 当前显示的月份（用于日历翻页）
     @State private var currentMonth: Date = Date()
     
+    // 全屏图片状态
+    @State private var fullScreenImage: FullScreenImage?
+    
     var body: some View {
-        // 🔥 移除了 NavigationStack，由 ContentView 提供
         ZStack {
             Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
             
@@ -39,9 +42,15 @@ struct LookBackView: View {
                         recordedDates: getRecordedDates()
                     )
                     
-                    // 3. 选中日期的详细回顾 (UI 优化：区分过去与未来)
-                    DayReviewSection(date: selectedDate, items: itemsInDay(date: selectedDate))
-                        .padding(.bottom, 40)
+                    // 3. 选中日期的详细回顾
+                    DayReviewSection(
+                        date: selectedDate,
+                        items: itemsInDay(date: selectedDate),
+                        onImageTap: { image in
+                            fullScreenImage = FullScreenImage(image: image)
+                        }
+                    )
+                    .padding(.bottom, 40)
                 }
                 .padding(.horizontal)
             }
@@ -60,11 +69,14 @@ struct LookBackView: View {
                 }
             }
         }
+        // 图片全屏浏览
+        .fullScreenCover(item: $fullScreenImage) { wrapper in
+            FullScreenPhotoView(image: wrapper.image)
+        }
     }
     
     // MARK: - 数据处理辅助函数
     
-    // 获取有记录的所有日期（用于日历打点）
     private func getRecordedDates() -> Set<String> {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -72,13 +84,11 @@ struct LookBackView: View {
         return Set(dates)
     }
     
-    // 获取指定月份的所有记录（用于统计）
     private func itemsInMonth(date: Date) -> [TimelineItem] {
         let calendar = Calendar.current
         return allItems.filter { calendar.isDate($0.timestamp, equalTo: date, toGranularity: .month) }
     }
     
-    // 获取指定日期的所有记录（用于列表展示）
     private func itemsInDay(date: Date) -> [TimelineItem] {
         let calendar = Calendar.current
         return allItems.filter { calendar.isDate($0.timestamp, inSameDayAs: date) }
@@ -92,7 +102,16 @@ struct StatsHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             StatCard(title: "本月记录", value: "\(items.count)", unit: "条", icon: "doc.text.fill", color: .blue)
-            StatCard(title: "灵感捕捉", value: "\(items.filter { $0.type == "inspiration" }.count)", unit: "个", icon: "lightbulb.fill", color: .yellow)
+            
+            // 🔥 修复数据逻辑：统计 (类型为灵感 OR 标记为高亮) 的数量，与灵感集保持一致
+            StatCard(
+                title: "灵感捕捉",
+                value: "\(items.filter { $0.type == "inspiration" || $0.isHighlight }.count)",
+                unit: "个",
+                icon: "lightbulb.fill",
+                color: .yellow
+            )
+            
             StatCard(title: "影像瞬间", value: "\(items.filter { $0.imageData != nil }.count)", unit: "张", icon: "photo.fill", color: .purple)
         }
     }
@@ -124,7 +143,7 @@ struct StatCard: View {
     }
 }
 
-// MARK: - 2. 日历卡片组件
+// MARK: - 2. 日历卡片组件 (保持不变)
 struct CalendarCardView: View {
     @Binding var currentMonth: Date
     @Binding var selectedDate: Date
@@ -135,35 +154,24 @@ struct CalendarCardView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // 月份切换头
             HStack {
                 Text(monthYearString(currentMonth))
                     .font(.title3).bold()
                     .foregroundColor(.primary)
-                
                 Spacer()
-                
                 HStack(spacing: 20) {
-                    Button(action: { changeMonth(by: -1) }) {
-                        Image(systemName: "chevron.left").foregroundColor(.secondary)
-                    }
-                    Button(action: { changeMonth(by: 1) }) {
-                        Image(systemName: "chevron.right").foregroundColor(.secondary)
-                    }
+                    Button(action: { changeMonth(by: -1) }) { Image(systemName: "chevron.left").foregroundColor(.secondary) }
+                    Button(action: { changeMonth(by: 1) }) { Image(systemName: "chevron.right").foregroundColor(.secondary) }
                 }
             }
             .padding(.horizontal, 4)
             
-            // 星期头
             HStack {
                 ForEach(weekDays, id: \.self) { day in
-                    Text(day)
-                        .font(.caption).bold().foregroundColor(.gray)
-                        .frame(maxWidth: .infinity)
+                    Text(day).font(.caption).bold().foregroundColor(.gray).frame(maxWidth: .infinity)
                 }
             }
             
-            // 日期网格
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
                 ForEach(daysInMonth(), id: \.self) { date in
                     if let date = date {
@@ -173,14 +181,8 @@ struct CalendarCardView: View {
                             isToday: calendar.isDateInToday(date),
                             hasData: hasData(on: date)
                         )
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.3)) {
-                                selectedDate = date
-                            }
-                        }
-                    } else {
-                        Text("").frame(height: 36) // 占位
-                    }
+                        .onTapGesture { withAnimation(.spring(response: 0.3)) { selectedDate = date } }
+                    } else { Text("").frame(height: 36) }
                 }
             }
         }
@@ -190,35 +192,25 @@ struct CalendarCardView: View {
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
-    // 日历逻辑
     func changeMonth(by value: Int) {
-        if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
-            withAnimation { currentMonth = newMonth }
-        }
+        if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) { withAnimation { currentMonth = newMonth } }
     }
-    
     func monthYearString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年 MM月"
         return formatter.string(from: date)
     }
-    
     func daysInMonth() -> [Date?] {
         guard let range = calendar.range(of: .day, in: .month, for: currentMonth),
               let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)) else { return [] }
-        
         let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth)
         let paddingDays = firstWeekday - 1
-        
         var days: [Date?] = Array(repeating: nil, count: paddingDays)
         for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstDayOfMonth) {
-                days.append(date)
-            }
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstDayOfMonth) { days.append(date) }
         }
         return days
     }
-    
     func hasData(on date: Date) -> Bool {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -226,13 +218,8 @@ struct CalendarCardView: View {
     }
 }
 
-// 单个日期格子
 struct DayCell: View {
-    let date: Date
-    let isSelected: Bool
-    let isToday: Bool
-    let hasData: Bool
-    
+    let date: Date, isSelected: Bool, isToday: Bool, hasData: Bool
     var body: some View {
         VStack(spacing: 4) {
             Text("\(Calendar.current.component(.day, from: date))")
@@ -240,14 +227,8 @@ struct DayCell: View {
                 .foregroundColor(isSelected ? .white : (isToday ? .blue : .primary))
                 .frame(width: 32, height: 32)
                 .background(isSelected ? Circle().fill(Color.blue) : nil)
-                .overlay(
-                    isToday && !isSelected ? Circle().stroke(Color.blue, lineWidth: 1) : nil
-                )
-            
-            // 数据指示点 (水滴)
-            Circle()
-                .fill(hasData ? (isSelected ? .white.opacity(0.8) : Color.blue) : Color.clear)
-                .frame(width: 4, height: 4)
+                .overlay(isToday && !isSelected ? Circle().stroke(Color.blue, lineWidth: 1) : nil)
+            Circle().fill(hasData ? (isSelected ? .white.opacity(0.8) : Color.blue) : Color.clear).frame(width: 4, height: 4)
         }
         .frame(height: 40)
     }
@@ -257,8 +238,8 @@ struct DayCell: View {
 struct DayReviewSection: View {
     let date: Date
     let items: [TimelineItem]
+    var onImageTap: ((UIImage) -> Void)?
     
-    // 判断是否是未来日期
     private var isFuture: Bool {
         Calendar.current.startOfDay(for: date) > Calendar.current.startOfDay(for: Date())
     }
@@ -266,16 +247,12 @@ struct DayReviewSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(dateFormatted(date))
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                Text(dateFormatted(date)).font(.headline).foregroundColor(.secondary)
                 Spacer()
                 if !items.isEmpty {
                     Text("\(items.count) 条记忆")
-                        .font(.caption)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Color.secondary.opacity(0.2))
-                        .cornerRadius(4)
+                        .font(.caption).padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.2)).cornerRadius(4)
                 }
             }
             .padding(.horizontal, 4)
@@ -283,36 +260,21 @@ struct DayReviewSection: View {
             if items.isEmpty {
                 VStack(spacing: 12) {
                     Spacer().frame(height: 20)
-                    
                     if isFuture {
-                        // 未来日期的显示
-                        Image(systemName: "hourglass.bottomhalf.filled") // 沙漏图标
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray.opacity(0.3))
-                        Text("时光未至")
-                            .font(.subheadline)
-                            .foregroundColor(.gray.opacity(0.5))
+                        Image(systemName: "hourglass.bottomhalf.filled").font(.system(size: 40)).foregroundColor(.gray.opacity(0.3))
+                        Text("时光未至").font(.subheadline).foregroundColor(.gray.opacity(0.5))
                     } else {
-                        // 过去或今天的显示
-                        Image(systemName: "wind") // 风图标
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray.opacity(0.3))
-                        Text("这天没有留下痕迹")
-                            .font(.subheadline)
-                            .foregroundColor(.gray.opacity(0.5))
+                        Image(systemName: "wind").font(.system(size: 40)).foregroundColor(.gray.opacity(0.3))
+                        Text("这天没有留下痕迹").font(.subheadline).foregroundColor(.gray.opacity(0.5))
                     }
-                    
                     Spacer().frame(height: 20)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.5))
-                .cornerRadius(12)
-                
+                .frame(maxWidth: .infinity).padding()
+                .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.5)).cornerRadius(12)
             } else {
                 LazyVStack(spacing: 12) {
                     ForEach(items) { item in
-                        CompactTimelineRow(item: item)
+                        CompactTimelineRow(item: item, onImageTap: onImageTap)
                     }
                 }
             }
@@ -321,15 +283,16 @@ struct DayReviewSection: View {
     
     func dateFormatted(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MM月dd日 EEEE" // 例如：12月19日 星期五
+        formatter.dateFormat = "MM月dd日 EEEE"
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
     }
 }
 
-// 紧凑型列表行
+// MARK: - 紧凑型列表行
 struct CompactTimelineRow: View {
     let item: TimelineItem
+    var onImageTap: ((UIImage) -> Void)?
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -343,7 +306,7 @@ struct CompactTimelineRow: View {
             
             // 内容卡片
             HStack(alignment: .top, spacing: 8) {
-                // 如果有图，显示缩略图
+                // 图片
                 if let data = item.imageData, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage)
                         .resizable()
@@ -351,11 +314,14 @@ struct CompactTimelineRow: View {
                         .frame(width: 50, height: 50)
                         .cornerRadius(6)
                         .clipped()
+                        .contentShape(Rectangle())
+                        .onTapGesture { onImageTap?(uiImage) }
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
+                    // 🔥 内容富文本（标签变蓝 + 灯泡）
                     if !item.content.isEmpty {
-                        Text(item.content)
+                        Text(getAttributedContent(item))
                             .font(.system(size: 15))
                             .foregroundColor(.primary)
                             .lineLimit(3)
@@ -365,15 +331,15 @@ struct CompactTimelineRow: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // 如果是灵感，显示标签
+                    // 🔥 灵感标签 (如果是灵感类型，显示黄色标签)
                     if item.type == "inspiration" {
-                        Text("#灵感")
-                            .font(.system(size: 10))
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 4)
+                        Text("灵感")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.yellow)
+                            .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(2)
+                            .background(Color.yellow.opacity(0.15))
+                            .cornerRadius(4)
                     }
                 }
                 Spacer()
@@ -382,5 +348,37 @@ struct CompactTimelineRow: View {
             .background(Color(uiColor: .secondarySystemGroupedBackground))
             .cornerRadius(12)
         }
+    }
+    
+    // 🔥 解析内容：标签变蓝 + 插入灯泡图标
+    private func getAttributedContent(_ item: TimelineItem) -> AttributedString {
+        var fullString = AttributedString("")
+        
+        // 如果有高亮，添加灯泡图标
+        if item.isHighlight {
+            var imageAttr = AttributedString(String(localized: "💡 ")) // 使用 emoji
+            imageAttr.font = .system(size: 14)
+            fullString.append(imageAttr)
+        }
+        
+        let content = item.content
+        var attrContent = AttributedString(content)
+        
+        // 匹配 #标签 并设为蓝色
+        if let regex = try? NSRegularExpression(pattern: "#[^\\s]*", options: []) {
+            let nsString = content as NSString
+            let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsString.length))
+            
+            for match in matches {
+                if let range = Range(match.range, in: content) {
+                    if let attrRange = attrContent.range(of: String(content[range])) {
+                         attrContent[attrRange].foregroundColor = .blue
+                    }
+                }
+            }
+        }
+        
+        fullString.append(attrContent)
+        return fullString
     }
 }

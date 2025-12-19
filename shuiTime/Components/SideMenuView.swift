@@ -20,13 +20,13 @@ struct SideMenuView: View {
     // 接收今天是否有内容的状态
     var hasContentToday: Bool
     
-    // 是否显示标签区域 (旧逻辑保留，但新版主要靠导航跳转)
+    // (已弃用，不再通过此属性控制显示，保留是为了兼容调用)
     var showTags: Bool
     
     // 点击标签的回调
     var onTagSelected: ((String) -> Void)?
     
-    // 🔥 新增：点击菜单项的回调
+    // 点击菜单项的回调
     var onMenuSelected: ((SideMenuOption) -> Void)?
     
     // 获取数据库所有数据
@@ -39,7 +39,7 @@ struct SideMenuView: View {
     
     // 计算所有唯一的标签
     var allTags: [String] {
-        let inspirationItems = allItems.filter { $0.type == "inspiration" }
+        let inspirationItems = allItems // 统计所有类型
         var uniqueTags = Set<String>()
         for item in inspirationItems {
             let lines = item.content.components(separatedBy: "\n")
@@ -47,6 +47,7 @@ struct SideMenuView: View {
                 let words = line.split(separator: " ")
                 for word in words {
                     let stringWord = String(word)
+                    // 数据本身包含 "#"，例如 "#标签"
                     if stringWord.hasPrefix("#") && stringWord.count > 1 {
                         uniqueTags.insert(stringWord)
                     }
@@ -113,7 +114,7 @@ struct SideMenuView: View {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     
-                    // --- 顶部用户信息 ---
+                    // --- 1. 顶部用户信息 (固定) ---
                     HStack {
                         HStack(spacing: 12) {
                             Circle()
@@ -134,65 +135,115 @@ struct SideMenuView: View {
                     }
                     .padding(.top, 60).padding(.horizontal, 24).padding(.bottom, 20)
                     
-                    // --- 🔥 导航菜单区域 ---
-                    VStack(spacing: 8) {
-                        MenuButton(title: "灵感集", icon: "lightbulb.fill", color: .yellow) {
-                            onMenuSelected?(.inspiration)
-                        }
-                        
-                        MenuButton(title: "时光回顾", icon: "clock.arrow.circlepath", color: .purple) {
-                            onMenuSelected?(.lookBack)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
-                    
-                    // --- 统计数据 ---
-                    HStack {
-                        StatItemView(number: "\(noteCount)", title: "笔记")
-                        Spacer()
-                        StatItemView(number: "\(tagCount)", title: "标签")
-                        Spacer()
-                        StatItemView(number: "\(dayCount)", title: "天")
-                    }
-                    .padding(.horizontal, 24).padding(.bottom, 24)
-                    
-                    // --- 热力图 ---
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 3) {
-                            ForEach(heatMapData.indices, id: \.self) { weekIndex in
-                                let week = heatMapData[weekIndex]
-                                VStack(spacing: 3) {
-                                    ForEach(week) { day in
-                                        HeatMapCell(day: day)
+                    // 使用 ScrollView 包裹剩余内容，防止溢出
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 24) {
+                            
+                            // 🔥 交换位置：先显示统计数据
+                            // --- 2. 统计数据 ---
+                            HStack {
+                                StatItemView(number: "\(noteCount)", title: "笔记")
+                                Spacer()
+                                StatItemView(number: "\(tagCount)", title: "标签")
+                                Spacer()
+                                StatItemView(number: "\(dayCount)", title: "天")
+                            }
+                            .padding(.horizontal, 24)
+                            
+                            // 🔥 交换位置：后显示热力图
+                            // --- 3. 热力图 ---
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(spacing: 3) {
+                                    ForEach(heatMapData.indices, id: \.self) { weekIndex in
+                                        let week = heatMapData[weekIndex]
+                                        VStack(spacing: 3) {
+                                            ForEach(week) { day in
+                                                HeatMapCell(day: day)
+                                            }
+                                        }
                                     }
                                 }
+                                
+                                // 底部说明
+                                HStack {
+                                    Text("Less").font(.caption2).foregroundColor(.secondary)
+                                    HStack(spacing: 2) {
+                                        RoundedRectangle(cornerRadius: 1).fill(Color.secondary.opacity(0.1)).frame(width: 8, height: 8)
+                                        RoundedRectangle(cornerRadius: 1).fill(Color.green.opacity(0.4)).frame(width: 8, height: 8)
+                                        RoundedRectangle(cornerRadius: 1).fill(Color.green).frame(width: 8, height: 8)
+                                    }
+                                    Text("More").font(.caption2).foregroundColor(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.top, 4)
                             }
-                        }
-                        
-                        // 底部说明
-                        HStack {
-                            Text("Less").font(.caption2).foregroundColor(.secondary)
-                            HStack(spacing: 2) {
-                                RoundedRectangle(cornerRadius: 1).fill(Color.secondary.opacity(0.1)).frame(width: 8, height: 8)
-                                RoundedRectangle(cornerRadius: 1).fill(Color.green.opacity(0.4)).frame(width: 8, height: 8)
-                                RoundedRectangle(cornerRadius: 1).fill(Color.green).frame(width: 8, height: 8)
+                            .padding(.horizontal, 24)
+                            
+                            Divider().padding(.horizontal, 24)
+                            
+                            // --- 4. 导航菜单区域 ---
+                            VStack(spacing: 8) {
+                                MenuButton(title: "灵感集", icon: "lightbulb.fill", color: .yellow) {
+                                    onMenuSelected?(.inspiration)
+                                }
+                                
+                                MenuButton(title: "时光回顾", icon: "clock.arrow.circlepath", color: .purple) {
+                                    onMenuSelected?(.lookBack)
+                                }
                             }
-                            Text("More").font(.caption2).foregroundColor(.secondary)
-                            Spacer()
+                            .padding(.horizontal, 16)
+                            
+                            Divider().padding(.horizontal, 24)
+                            
+                            // --- 5. 全部标签区域 ---
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("全部标签")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 24)
+                                
+                                if allTags.isEmpty {
+                                    Text("暂无标签")
+                                        .font(.caption)
+                                        .foregroundColor(.gray.opacity(0.5))
+                                        .padding(.horizontal, 24)
+                                } else {
+                                    VStack(spacing: 1) {
+                                        ForEach(allTags, id: \.self) { tag in
+                                            Button(action: { onTagSelected?(tag) }) {
+                                                HStack {
+                                                    // tag 变量已经包含 #
+                                                    Text(tag)
+                                                        .font(.body)
+                                                        .foregroundColor(.primary)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Image(systemName: "chevron.right")
+                                                        .font(.caption)
+                                                        .foregroundColor(.gray.opacity(0.3))
+                                                }
+                                                .padding(.vertical, 10)
+                                                .padding(.horizontal, 16)
+                                                // 🔥 修改：移除了背景颜色和圆角，只保留内容
+                                                .contentShape(Rectangle()) // 保证整行可点击
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                }
+                            }
+                            
+                            // 底部留白
+                            Spacer().frame(height: 40)
                         }
-                        .padding(.top, 4)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 20)
                     
-                    Divider()
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 20)
-                    
-                    Spacer()
-                    
-                    Text("v1.1.0").font(.caption).foregroundColor(.gray.opacity(0.5)).padding()
+                    // 底部版本号
+                    VStack {
+                        Divider()
+                        Text("v1.1.0").font(.caption).foregroundColor(.gray.opacity(0.5)).padding()
+                    }
                 }
                 .frame(width: 300)
                 .background(Color(uiColor: .systemBackground))

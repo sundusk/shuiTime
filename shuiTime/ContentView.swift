@@ -45,8 +45,15 @@ struct ContentView: View {
                 SideMenuView(
                     isOpen: $showSideMenu,
                     hasContentToday: hasTodayContent,
-                    showTags: false,
-                    onTagSelected: { _ in },
+                    showTags: true, // 这里虽然传入 true，但 SideMenuView 内部已经修改为始终显示
+                    // 🔥 处理标签点击跳转
+                    onTagSelected: { tag in
+                        withAnimation { showSideMenu = false }
+                        // 延迟跳转，保证侧边栏收起动画流畅
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            path.append(tag)
+                        }
+                    },
                     onMenuSelected: { option in
                         withAnimation { showSideMenu = false }
                         // 延迟跳转，保证侧边栏收起动画流畅

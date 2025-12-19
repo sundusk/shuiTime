@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct TagFilterView: View {
     let tagName: String
@@ -17,7 +18,7 @@ struct TagFilterView: View {
     @Query(sort: \TimelineItem.timestamp, order: .reverse)
     private var allItems: [TimelineItem]
     
-    // 筛选逻辑：包含标签即可 (不区分灵感或时间线)
+    // 筛选逻辑
     var filteredItems: [TimelineItem] {
         allItems.filter { item in
             item.content.contains(tagName)
@@ -30,9 +31,14 @@ struct TagFilterView: View {
     @State private var showDeleteAlert = false
     @State private var fullScreenImage: FullScreenImage?
     
+    // 🔥 新增：自定义菜单状态 (参考 InspirationView)
+    @State private var showCustomMenu = false
+    @State private var menuPosition: CGPoint = .zero
+    @State private var itemForMenu: TimelineItem?
+    
     var body: some View {
-        ZStack {
-            // 背景色 (系统分组背景，深色模式下为纯黑或深灰)
+        ZStack(alignment: .topLeading) {
+            // 背景色
             Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
             
             if filteredItems.isEmpty {
@@ -44,33 +50,70 @@ struct TagFilterView: View {
                         .font(.subheadline)
                         .foregroundColor(.gray)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) { // 卡片间距
+                    LazyVStack(spacing: 12) {
                         ForEach(filteredItems) { item in
-                            TagFilterCard(item: item, highlightTag: tagName)
-                                .onTapGesture {
-                                    // 点击卡片也可触发编辑，或者你可以留空
+                            TagFilterCard(
+                                item: item,
+                                highlightTag: tagName,
+                                onMenuTap: { selectedItem, anchorPoint in
+                                    self.itemForMenu = selectedItem
+                                    self.menuPosition = anchorPoint
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        self.showCustomMenu = true
+                                    }
+                                },
+                                onImageTap: { image in
+                                    self.fullScreenImage = FullScreenImage(image: image)
                                 }
-                                .contextMenu {
-                                    Button { itemToEdit = item } label: { Label("修改", systemImage: "pencil") }
-                                    Button(role: .destructive) {
-                                        itemToDelete = item
-                                        showDeleteAlert = true
-                                    } label: { Label("删除", systemImage: "trash") }
-                                }
-                            
-                            // 图片点击处理 (通过回调或透明层，这里简单起见，如果卡片有点按事件，图片需单独处理)
-                            // 由于 TagFilterCard 内部处理了图片显示，我们可以在那里加点击
+                            )
                         }
                     }
-                    .padding() // 列表边距
+                    .padding()
                     .padding(.bottom, 40)
                 }
+                .coordinateSpace(name: "TagFilterScrollSpace") // 🔥 关键：定义坐标空间用于定位菜单
+            }
+            
+            // 🔥 新增：浮层菜单 (参考 InspirationView)
+            if showCustomMenu {
+                Color.black.opacity(0.01).ignoresSafeArea().onTapGesture { withAnimation { showCustomMenu = false } }
+                
+                VStack(spacing: 0) {
+                    Button(action: {
+                        showCustomMenu = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { itemToEdit = itemForMenu }
+                    }) {
+                        HStack { Image(systemName: "pencil"); Text("修改"); Spacer() }
+                            .padding().foregroundColor(.primary)
+                    }
+                    Divider()
+                    Button(action: {
+                        showCustomMenu = false
+                        if let item = itemForMenu {
+                            itemToDelete = item
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showDeleteAlert = true }
+                        }
+                    }) {
+                        HStack { Image(systemName: "trash"); Text("删除"); Spacer() }
+                            .padding().foregroundColor(.red)
+                    }
+                }
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .cornerRadius(12).frame(width: 140)
+                .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+                .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
+                .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
             }
         }
         .navigationTitle("#\(tagName)")
         .navigationBarTitleDisplayMode(.inline)
+        // 图片全屏浏览
+        .fullScreenCover(item: $fullScreenImage) { wrapper in
+            FullScreenPhotoView(image: wrapper.image)
+        }
         // 编辑弹窗
         .sheet(item: $itemToEdit) { item in
             InspirationInputView(itemToEdit: item)
@@ -88,10 +131,16 @@ struct TagFilterView: View {
     }
 }
 
-// MARK: - 卡片组件 (仿 Flomo 样式)
+// MARK: - 卡片组件
 struct TagFilterCard: View {
     let item: TimelineItem
     let highlightTag: String
+    
+    // 🔥 新增回调
+    var onMenuTap: (TimelineItem, CGPoint) -> Void
+    var onImageTap: ((UIImage) -> Void)?
+    
+    @State private var buttonFrame: CGRect = .zero
     
     // 时间格式化
     private var dateString: String {
@@ -106,34 +155,55 @@ struct TagFilterCard: View {
             // 1. 顶部信息栏
             HStack {
                 Text(dateString)
-                    .font(.system(size: 13, weight: .regular, design: .monospaced)) // 等宽字体更像代码/日志风格
+                    .font(.system(size: 13, weight: .regular, design: .monospaced))
                     .foregroundColor(.gray)
                 
                 Spacer()
                 
-                Image(systemName: "ellipsis")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                // 🔥 修改：使用按钮触发菜单，而非长按
+                Button(action: {
+                    let anchor = CGPoint(x: buttonFrame.maxX, y: buttonFrame.maxY)
+                    onMenuTap(item, anchor)
+                }) {
+                    Image(systemName: "ellipsis")
+                        .font(.body)
+                        .foregroundColor(.gray) // 保持灰色，不抢视觉
+                        .padding(8) // 增加点击区域
+                }
+                .buttonStyle(.borderless)
+                .background(GeometryReader { geo in
+                    Color.clear
+                        .onAppear { buttonFrame = geo.frame(in: .named("TagFilterScrollSpace")) }
+                        .onChange(of: geo.frame(in: .named("TagFilterScrollSpace"))) { _, newFrame in
+                            buttonFrame = newFrame
+                        }
+                })
             }
             
-            // 2. 内容区域 (标签 + 文本 混排)
+            // 2. 内容区域 (标签 + 富文本混排)
             if !item.content.isEmpty {
                 TagFilterLayout(spacing: 6) {
-                    let segments = parseContent(item.content)
-                    ForEach(segments.indices, id: \.self) { index in
-                        let segment = segments[index]
+                    // 灯泡图标
+                    if item.isHighlight {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.subheadline)
+                            .foregroundColor(.yellow)
+                            .padding(.top, 2)
+                    }
+                    
+                    let segments = parseContent(item)
+                    ForEach(segments) { segment in
                         if segment.isTag {
-                            Text(segment.text)
+                            Text(segment.attributedText)
                                 .font(.system(size: 15))
-                                .foregroundColor(.blue) // 蓝色文字
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
-                                .background(Color.blue.opacity(0.15)) // 蓝色背景胶囊
+                                .background(Color.blue.opacity(0.15))
                                 .cornerRadius(6)
                         } else {
-                            Text(segment.text)
+                            Text(segment.attributedText)
                                 .font(.system(size: 16))
-                                .foregroundColor(Color(uiColor: .label)) // 自动适配深浅色
+                                .foregroundColor(Color(uiColor: .label))
                                 .lineLimit(nil)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -151,52 +221,106 @@ struct TagFilterCard: View {
                     .cornerRadius(8)
                     .clipped()
                     .padding(.top, 4)
+                    .contentShape(Rectangle())
+                    // 🔥 新增：点击图片放大
+                    .onTapGesture {
+                        onImageTap?(uiImage)
+                    }
             }
         }
         .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground)) // 卡片背景色
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(12)
-        // 微弱的阴影增加层次感
         .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 1)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(item.isHighlight ? Color.yellow.opacity(0.3) : Color.clear, lineWidth: 1.5)
+        )
     }
     
-    // 解析逻辑 (私有，不依赖外部)
+    // MARK: - 内容解析逻辑
+    
     private struct TagTextSegment: Identifiable {
         let id = UUID()
         let text: String
+        let attributedText: AttributedString
         let isTag: Bool
     }
     
-    private func parseContent(_ text: String) -> [TagTextSegment] {
+    private func parseContent(_ item: TimelineItem) -> [TagTextSegment] {
+        if let data = item.richContentData,
+           let nsAttr = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSAttributedString.self, from: data) {
+            return splitRichTextIntoSegments(nsAttr)
+        }
+        return splitPlainTextIntoSegments(item.content)
+    }
+    
+    private func splitRichTextIntoSegments(_ nsAttr: NSAttributedString) -> [TagTextSegment] {
         var segments: [TagTextSegment] = []
-        // 保留换行符的分割逻辑
+        let string = nsAttr.string as NSString
+        var currentIndex = 0
+        
+        while currentIndex < string.length {
+            let remainingRange = NSRange(location: currentIndex, length: string.length - currentIndex)
+            let rangeOfSpace = string.rangeOfCharacter(from: .whitespacesAndNewlines, options: [], range: remainingRange)
+            
+            let segmentRange: NSRange
+            let separatorRange: NSRange
+            
+            if rangeOfSpace.location == NSNotFound {
+                segmentRange = remainingRange
+                separatorRange = NSRange(location: string.length, length: 0)
+            } else {
+                segmentRange = NSRange(location: currentIndex, length: rangeOfSpace.location - currentIndex)
+                separatorRange = rangeOfSpace
+            }
+            
+            if segmentRange.length > 0 {
+                let wordSubAttr = nsAttr.attributedSubstring(from: segmentRange)
+                let wordString = wordSubAttr.string
+                let swiftUIAttributed = AttributedString(wordSubAttr)
+                
+                if wordString.hasPrefix("#") && wordString.count > 1 {
+                    segments.append(TagTextSegment(text: wordString, attributedText: swiftUIAttributed, isTag: true))
+                } else {
+                    segments.append(TagTextSegment(text: wordString, attributedText: swiftUIAttributed, isTag: false))
+                }
+            }
+            
+            if separatorRange.length > 0 {
+                let sepSubAttr = nsAttr.attributedSubstring(from: separatorRange)
+                let swiftUIAttributed = AttributedString(sepSubAttr)
+                segments.append(TagTextSegment(text: sepSubAttr.string, attributedText: swiftUIAttributed, isTag: false))
+            }
+            
+            currentIndex = segmentRange.upperBound + separatorRange.length
+        }
+        return segments
+    }
+    
+    private func splitPlainTextIntoSegments(_ text: String) -> [TagTextSegment] {
+        var segments: [TagTextSegment] = []
         let lines = text.components(separatedBy: "\n")
         
         for (lineIndex, line) in lines.enumerated() {
             let words = line.split(separator: " ", omittingEmptySubsequences: false)
             for (wordIndex, word) in words.enumerated() {
                 let stringWord = String(word)
+                let attr = AttributedString(stringWord)
+                
                 if stringWord.hasPrefix("#") && stringWord.count > 1 {
-                    segments.append(TagTextSegment(text: stringWord, isTag: true))
+                    segments.append(TagTextSegment(text: stringWord, attributedText: attr, isTag: true))
                 } else if !stringWord.isEmpty {
-                    segments.append(TagTextSegment(text: stringWord, isTag: false))
+                    segments.append(TagTextSegment(text: stringWord, attributedText: attr, isTag: false))
                 }
                 
-                // 补空格 (如果不是该行最后一个词)
                 if wordIndex < words.count - 1 {
-                    segments.append(TagTextSegment(text: " ", isTag: false))
+                    segments.append(TagTextSegment(text: " ", attributedText: AttributedString(" "), isTag: false))
                 }
             }
             
-            // 补换行 (如果不是最后一行)
-            // 注意：FlowLayout 处理换行比较麻烦，这里我们用一个占位符或者让 Layout 自动换行
-            // 简单处理：将换行符作为一个宽带满的透明视图强制换行，或者这里简单地作为普通文本处理
             if lineIndex < lines.count - 1 {
-                 // 在这里插入一个特殊的换行标记，或者仅仅加上 "\n" 字符
-                 // 为了简单，我们插入一个宽度极大但不可见的 View 会比较复杂
-                 // 这里简单处理：让 \n 成为一个普通段落，虽然 FlowLayout 可能不会强制换行。
-                 // 完美方案需要自定义 Layout 处理 newline，这里简化为加一个空格
-                 segments.append(TagTextSegment(text: "\n", isTag: false))
+                 segments.append(TagTextSegment(text: "\n", attributedText: AttributedString("\n"), isTag: false))
             }
         }
         return segments
@@ -230,11 +354,6 @@ private struct TagFilterLayout: Layout {
         
         for subview in subviews {
             let size = subview.sizeThatFits(.unspecified)
-            
-            // 如果遇到 "\n" 文本，强制换行 (简单 hack)
-            // 这里我们无法直接读取 View 内容，所以只能依赖宽度判断
-            // 或者如果之前逻辑里 \n 是单独一个 segment，我们可以通过某种方式识别？
-            // 暂且只做自动换行
             
             if currentX + size.width > maxWidth {
                 currentX = 0
