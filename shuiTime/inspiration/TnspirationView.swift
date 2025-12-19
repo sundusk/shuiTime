@@ -23,8 +23,6 @@ struct InspirationView: View {
     @State private var menuPosition: CGPoint = .zero
     @State private var itemForMenu: TimelineItem?
     @State private var selectedTag: String?
-    
-    // 🔥 新增：全屏图片状态
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
@@ -57,7 +55,6 @@ struct InspirationView: View {
                                     onTagTap: { tag in
                                         self.selectedTag = tag
                                     },
-                                    // 🔥 新增：图片点击回调
                                     onImageTap: { image in
                                         self.fullScreenImage = FullScreenImage(image: image)
                                     }
@@ -126,7 +123,6 @@ struct InspirationView: View {
                     }
                 }
             }
-            // 🔥 注册全屏弹窗
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
@@ -152,12 +148,11 @@ struct InspirationView: View {
     }
 }
 
-// MARK: - InspirationCardView (更新版)
+// MARK: - 灵感卡片视图 (更新样式)
 struct InspirationCardView: View {
     let item: TimelineItem
     var onMenuTap: (TimelineItem, CGPoint) -> Void
     var onTagTap: ((String) -> Void)? = nil
-    // 🔥 新增：图片点击回调
     var onImageTap: ((UIImage) -> Void)? = nil
     
     @State private var buttonFrame: CGRect = .zero
@@ -174,18 +169,22 @@ struct InspirationCardView: View {
                     onMenuTap(item, anchor)
                 }) {
                     Image(systemName: "ellipsis")
-                        .font(.body).foregroundColor(.secondary).padding(8)
-                        .background(Color.gray.opacity(0.1)).clipShape(Circle())
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        // 🔥 已移除背景色和圆形裁剪，样式更简洁
                 }
                 .buttonStyle(.borderless)
                 .background(GeometryReader { geo in
                     Color.clear
                         .onAppear { buttonFrame = geo.frame(in: .named("InspirationScrollSpace")) }
-                        .onChange(of: geo.frame(in: .named("InspirationScrollSpace"))) { newFrame in buttonFrame = newFrame }
+                        .onChange(of: geo.frame(in: .named("InspirationScrollSpace"))) { _, newFrame in
+                            buttonFrame = newFrame
+                        }
                 })
             }
             
-            // 🔥 图片
+            // 图片
             if let data = item.imageData, let uiImage = UIImage(data: data) {
                 Image(uiImage: uiImage)
                     .resizable().scaledToFill().frame(height: 180).frame(maxWidth: .infinity)
