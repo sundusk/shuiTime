@@ -9,87 +9,15 @@ import SwiftUI
 import SwiftData
 import UIKit
 
-// MARK: - 1. 全屏图片的数据包装器
-struct FullScreenImage: Identifiable {
-    let id = UUID()
-    let image: UIImage
-}
-
-// MARK: - 2. 支持缩放的图片视图
-struct ZoomableImageView: UIViewRepresentable {
-    var image: UIImage
-    
-    func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
-        scrollView.delegate = context.coordinator
-        scrollView.maximumZoomScale = 4.0
-        scrollView.minimumZoomScale = 1.0
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.backgroundColor = .clear
-        
-        let imageView = UIImageView(image: image)
-        imageView.contentMode = .scaleAspectFit
-        imageView.clipsToBounds = true
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        
-        scrollView.addSubview(imageView)
-        context.coordinator.imageView = imageView
-        
-        NSLayoutConstraint.activate([
-            imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            imageView.heightAnchor.constraint(equalTo: scrollView.heightAnchor),
-            imageView.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-            imageView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor)
-        ])
-        
-        return scrollView
-    }
-    
-    func updateUIView(_ uiView: UIScrollView, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator { Coordinator() }
-    
-    class Coordinator: NSObject, UIScrollViewDelegate {
-        var imageView: UIImageView?
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? { return imageView }
-    }
-}
-
-// MARK: - 3. 全屏图片查看容器
-struct FullScreenPhotoView: View {
-    let image: UIImage
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            ZoomableImageView(image: image).ignoresSafeArea()
-            
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 30))
-                            .foregroundColor(.white.opacity(0.8))
-                            .padding()
-                            .padding(.top, 40)
-                    }
-                }
-                Spacer()
-            }
-        }
-    }
-}
-
-// MARK: - 4. 主视图
+// MARK: - 主视图
 struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var showSideMenu: Bool
     
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
+    
+    // 这里直接使用公共组件 FullScreenImageView.swift 里定义的 FullScreenImage
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
@@ -140,6 +68,7 @@ struct TimeLineView: View {
                         .presentationDetents([.medium])
                 }
             }
+            // 使用公共组件 FullScreenPhotoView
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
@@ -154,7 +83,7 @@ struct TimeLineView: View {
     }
 }
 
-// MARK: - 5. 列表视图
+// MARK: - 列表视图
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
@@ -171,7 +100,7 @@ struct TimelineListView: View {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
-        // 🔥 核心修改：增加条件 item.type == "timeline"
+        // 核心修改：增加条件 item.type == "timeline"
         _items = Query(
             filter: #Predicate<TimelineItem> { item in
                 item.timestamp >= startOfDay &&
@@ -228,7 +157,7 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 6. 单行组件
+// MARK: - 单行组件
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
@@ -274,7 +203,7 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 7. 输入栏
+// MARK: - 输入栏
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var inputText: String = ""
@@ -330,7 +259,6 @@ struct InputBarView: View {
         let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         let icon = imageData != nil ? "photo" : "text.bubble"
         
-        // 🔥 核心修改：明确指定 type 为 "timeline"
         let newItem = TimelineItem(
             content: inputText,
             iconName: icon,

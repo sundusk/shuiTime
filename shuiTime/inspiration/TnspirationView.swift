@@ -12,24 +12,23 @@ struct InspirationView: View {
     @Binding var showSideMenu: Bool
     @Environment(\.modelContext) private var modelContext
     
-    // 查询灵感数据
     @Query(filter: #Predicate<TimelineItem> { $0.type == "inspiration" }, sort: \TimelineItem.timestamp, order: .reverse)
     private var items: [TimelineItem]
     
-    // MARK: - 状态管理
     @State private var showNewInputSheet = false
     @State private var itemToEdit: TimelineItem?
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
-    
-    // MARK: - 自定义菜单状态
     @State private var showCustomMenu = false
-    @State private var menuPosition: CGPoint = .zero // 菜单弹出的位置
-    @State private var itemForMenu: TimelineItem?    // 当前操作的条目
+    @State private var menuPosition: CGPoint = .zero
+    @State private var itemForMenu: TimelineItem?
+    @State private var selectedTag: String?
+    
+    // 🔥 新增：全屏图片状态
+    @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
         NavigationStack {
-            // 使用 ZStack 确保菜单能浮在最上面
             ZStack(alignment: .topLeading) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 
@@ -48,13 +47,19 @@ struct InspirationView: View {
                             ForEach(items) { item in
                                 InspirationCardView(
                                     item: item,
-                                    // 点击回调：传回 Item 和 按钮的坐标信息
                                     onMenuTap: { selectedItem, anchorPoint in
                                         self.itemForMenu = selectedItem
                                         self.menuPosition = anchorPoint
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                             self.showCustomMenu = true
                                         }
+                                    },
+                                    onTagTap: { tag in
+                                        self.selectedTag = tag
+                                    },
+                                    // 🔥 新增：图片点击回调
+                                    onImageTap: { image in
+                                        self.fullScreenImage = FullScreenImage(image: image)
                                     }
                                 )
                             }
@@ -62,7 +67,6 @@ struct InspirationView: View {
                         .padding()
                         .padding(.bottom, 80)
                     }
-                    // 🔥 关键：定义坐标空间，让卡片能算出相对于列表的位置
                     .coordinateSpace(name: "InspirationScrollSpace")
                 }
                 
@@ -85,63 +89,32 @@ struct InspirationView: View {
                     }
                 }
                 
-                // MARK: - 自定义浮层菜单
+                // 浮层菜单
                 if showCustomMenu {
-                    // 1. 透明背景层 (点击空白处关闭)
-                    Color.black.opacity(0.01) // 极低透明度用于接收点击
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation { showCustomMenu = false }
-                        }
-                    
-                    // 2. 菜单本体
+                    Color.black.opacity(0.01).ignoresSafeArea().onTapGesture { withAnimation { showCustomMenu = false } }
                     VStack(spacing: 0) {
                         Button(action: {
                             showCustomMenu = false
-                            // 稍微延迟，让菜单消失动画不被卡顿
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                itemToEdit = itemForMenu
-                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { itemToEdit = itemForMenu }
                         }) {
-                            HStack {
-                                Image(systemName: "pencil")
-                                Text("修改")
-                                Spacer()
-                            }
-                            .padding()
-                            .foregroundColor(.primary)
+                            HStack { Image(systemName: "pencil"); Text("修改"); Spacer() }
+                                .padding().foregroundColor(.primary)
                         }
-                        
                         Divider()
-                        
                         Button(action: {
                             showCustomMenu = false
                             if let item = itemForMenu {
                                 itemToDelete = item
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    showDeleteAlert = true
-                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showDeleteAlert = true }
                             }
                         }) {
-                            HStack {
-                                Image(systemName: "trash")
-                                Text("删除")
-                                Spacer()
-                            }
-                            .padding()
-                            .foregroundColor(.red)
+                            HStack { Image(systemName: "trash"); Text("删除"); Spacer() }
+                                .padding().foregroundColor(.red)
                         }
                     }
-                    .background(Color.white)
-                    .cornerRadius(12)
-                    .frame(width: 140) // 菜单宽度
+                    .background(Color.white).cornerRadius(12).frame(width: 140)
                     .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
-                    // 🔥 定位逻辑：将菜单的右上角对齐按钮的右下角
-                    // position 设置的是视图中心点，所以要做偏移计算
-                    .position(
-                        x: menuPosition.x - 70, // 向左偏移宽度的一半(140/2)，实现右对齐
-                        y: menuPosition.y + 60  // 向下偏移高度的一半(假设高120/2)，实现按钮下方
-                    )
+                    .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
                     .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
                 }
             }
@@ -153,124 +126,150 @@ struct InspirationView: View {
                     }
                 }
             }
-            // 弹窗逻辑
+            // 🔥 注册全屏弹窗
+            .fullScreenCover(item: $fullScreenImage) { wrapper in
+                FullScreenPhotoView(image: wrapper.image)
+            }
+            .navigationDestination(item: $selectedTag) { tag in
+                TagFilterView(tagName: tag)
+            }
             .sheet(isPresented: $showNewInputSheet) {
                 InspirationInputView(itemToEdit: nil)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
             }
             .sheet(item: $itemToEdit) { item in
                 InspirationInputView(itemToEdit: item)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
             }
             .alert("确认删除?", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) { itemToDelete = nil }
-                Button("删除", role: .destructive) {
-                    if let item = itemToDelete { deleteItem(item) }
-                }
-            } message: {
-                Text("删除后将无法恢复这条灵感。")
-            }
+                Button("删除", role: .destructive) { if let item = itemToDelete { deleteItem(item) } }
+            } message: { Text("删除后将无法恢复。") }
         }
     }
     
     private func deleteItem(_ item: TimelineItem) {
-        withAnimation {
-            modelContext.delete(item)
-            try? modelContext.save()
-        }
-        itemToDelete = nil
-        itemForMenu = nil
+        withAnimation { modelContext.delete(item); try? modelContext.save() }
+        itemToDelete = nil; itemForMenu = nil
     }
 }
 
-// MARK: - 灵感卡片视图
+// MARK: - InspirationCardView (更新版)
 struct InspirationCardView: View {
     let item: TimelineItem
-    // 回调：传入 Item 和 点击位置的坐标
     var onMenuTap: (TimelineItem, CGPoint) -> Void
+    var onTagTap: ((String) -> Void)? = nil
+    // 🔥 新增：图片点击回调
+    var onImageTap: ((UIImage) -> Void)? = nil
     
-    // 本地状态：存储按钮的实时位置
     @State private var buttonFrame: CGRect = .zero
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // 顶部
             HStack {
                 Text(item.timestamp.formatted(date: .numeric, time: .standard))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.caption).foregroundColor(.secondary)
                 Spacer()
-                
-                // 按钮区域
                 Button(action: {
-                    // 点击时，将之前计算好的位置传出去
-                    // 这里的坐标是按钮的右下角 (maxX, maxY)
                     let anchor = CGPoint(x: buttonFrame.maxX, y: buttonFrame.maxY)
                     onMenuTap(item, anchor)
                 }) {
                     Image(systemName: "ellipsis")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .padding(8)
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(Circle())
+                        .font(.body).foregroundColor(.secondary).padding(8)
+                        .background(Color.gray.opacity(0.1)).clipShape(Circle())
                 }
                 .buttonStyle(.borderless)
-                // 🔥 核心：使用 GeometryReader 获取按钮在 ScrollView 中的位置
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onAppear {
-                                // 获取在自定义坐标系中的 frame
-                                buttonFrame = geo.frame(in: .named("InspirationScrollSpace"))
-                            }
-                            .onChange(of: geo.frame(in: .named("InspirationScrollSpace"))) { newFrame in
-                                // 当滚动时实时更新坐标
-                                buttonFrame = newFrame
-                            }
-                    }
-                )
+                .background(GeometryReader { geo in
+                    Color.clear
+                        .onAppear { buttonFrame = geo.frame(in: .named("InspirationScrollSpace")) }
+                        .onChange(of: geo.frame(in: .named("InspirationScrollSpace"))) { newFrame in buttonFrame = newFrame }
+                })
             }
             
+            // 🔥 图片
             if let data = item.imageData, let uiImage = UIImage(data: data) {
                 Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 180)
-                    .frame(maxWidth: .infinity)
-                    .cornerRadius(8)
-                    .clipped()
-                    .contentShape(Rectangle())
+                    .resizable().scaledToFill().frame(height: 180).frame(maxWidth: .infinity)
+                    .cornerRadius(8).clipped().contentShape(Rectangle())
+                    .onTapGesture {
+                        onImageTap?(uiImage)
+                    }
             }
             
+            // 内容
             if !item.content.isEmpty {
-                Text(attributedContent(for: item.content))
-                    .font(.body)
-                    .lineLimit(5)
-                    .fixedSize(horizontal: false, vertical: true)
+                let segments = parseContent(item.content)
+                FlowLayout(spacing: 4) {
+                    ForEach(segments.indices, id: \.self) { index in
+                        let segment = segments[index]
+                        if segment.isTag {
+                            Button(action: { onTagTap?(segment.text) }) {
+                                Text(segment.text)
+                                    .font(.body).foregroundColor(.blue)
+                                    .padding(.vertical, 2).padding(.horizontal, 6)
+                                    .background(Color.blue.opacity(0.1)).cornerRadius(4)
+                            }
+                        } else {
+                            Text(segment.text).font(.body).foregroundColor(.primary)
+                        }
+                    }
+                }
             }
         }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(16)
+        .padding(16).background(Color.white).cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
-    func attributedContent(for text: String) -> AttributedString {
-        var attributed = AttributedString(text)
-        attributed.foregroundColor = .primary
-        if text.hasPrefix("#") {
-            let separators = CharacterSet.whitespacesAndNewlines
-            if let range = text.rangeOfCharacter(from: separators) {
-                let tagString = String(text[..<range.lowerBound])
-                if let attrRange = attributed.range(of: tagString) {
-                    attributed[attrRange].foregroundColor = .blue
+    // 解析和布局逻辑
+    struct TextSegment: Identifiable {
+        let id = UUID()
+        let text: String
+        let isTag: Bool
+    }
+    
+    func parseContent(_ text: String) -> [TextSegment] {
+        var segments: [TextSegment] = []
+        let lines = text.components(separatedBy: "\n")
+        for (lineIndex, line) in lines.enumerated() {
+            let words = line.split(separator: " ", omittingEmptySubsequences: false)
+            for (wordIndex, word) in words.enumerated() {
+                let stringWord = String(word)
+                if stringWord.hasPrefix("#") && stringWord.count > 1 {
+                    segments.append(TextSegment(text: stringWord, isTag: true))
+                } else if !stringWord.isEmpty {
+                    segments.append(TextSegment(text: stringWord, isTag: false))
                 }
-            } else {
-                attributed.foregroundColor = .blue
+                if wordIndex < words.count - 1 { segments.append(TextSegment(text: " ", isTag: false)) }
             }
+            if lineIndex < lines.count - 1 { segments.append(TextSegment(text: "\n", isTag: false)) }
         }
-        return attributed
+        return segments
+    }
+}
+
+// FlowLayout
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 4
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = flow(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = flow(proposal: proposal, subviews: subviews)
+        for (index, point) in result.points.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
+        }
+    }
+    struct LayoutResult { var size: CGSize; var points: [CGPoint] }
+    func flow(proposal: ProposedViewSize, subviews: Subviews) -> LayoutResult {
+        let maxWidth = proposal.width ?? .infinity
+        var currentX: CGFloat = 0; var currentY: CGFloat = 0; var lineHeight: CGFloat = 0
+        var points: [CGPoint] = []
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX + size.width > maxWidth { currentX = 0; currentY += lineHeight + spacing; lineHeight = 0 }
+            points.append(CGPoint(x: currentX, y: currentY))
+            currentX += size.width + spacing; lineHeight = max(lineHeight, size.height)
+        }
+        return LayoutResult(size: CGSize(width: maxWidth, height: currentY + lineHeight), points: points)
     }
 }
