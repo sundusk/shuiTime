@@ -34,7 +34,7 @@ struct ContentView: View {
                 // TimeLineView (Tab 0)
                 TimeLineView(showSideMenu: $showSideMenu)
                     .tabItem {
-                        Label("今日", systemImage: "calendar.day.timeline.left")
+                        Label("时间线", systemImage: "calendar.day.timeline.left")
                     }
                     .tag(0)
 
@@ -50,9 +50,9 @@ struct ContentView: View {
                     .tag(1)
 
                 // LookBackView (Tab 2)
-                LookBackView(showSideMenu: $showSideMenu)
+                LookBackView() // ✅ 新代码：不需要传参数了
                     .tabItem {
-                        Label("我", systemImage: "person.crop.circle")
+                        Label("时光回顾", systemImage: "clock.arrow.circlepath")
                     }
                     .tag(2)
             }

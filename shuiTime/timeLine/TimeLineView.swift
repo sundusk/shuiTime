@@ -23,11 +23,19 @@ struct TimeLineView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
+                // 背景层 - 点击收起键盘
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                    .onTapGesture {
+                        hideKeyboard()
+                    }
                 
+                // 列表层 - 点击收起键盘
                 TimelineListView(date: selectedDate, onImageTap: { image in
                     fullScreenImage = FullScreenImage(image: image)
                 })
+                .onTapGesture {
+                    hideKeyboard()
+                }
                 
                 // 仅在今天显示输入框
                 if Calendar.current.isDateInToday(selectedDate) {
@@ -286,6 +294,15 @@ struct EmptyStateView: View {
         .offset(y: -40)
     }
 }
+
+// MARK: - 扩展：隐藏键盘
+#if canImport(UIKit)
+extension View {
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+#endif
 
 #Preview {
     TimeLineView(showSideMenu: .constant(false))
