@@ -19,6 +19,9 @@ struct InspirationInputView: View {
     // 🔥 新增：接收初始内容 (用于新建时预填标签)
     var initialContent: String = ""
     
+    // 🔥 新增：指定创建时的类型 (默认为灵感，也可以是 "timeline")
+    var createType: String = "inspiration"
+    
     // 输入状态
     @State private var attributedText = NSMutableAttributedString(string: "")
     @State private var isBold: Bool = false
@@ -176,12 +179,18 @@ struct InspirationInputView: View {
             existingItem.content = plainText
             existingItem.imageData = imageData
         } else {
+            // 🔥 根据类型自动决定图标
+            var icon = "lightbulb.fill"
+            if createType == "timeline" {
+                icon = imageData != nil ? "photo" : "text.bubble"
+            }
+            
             let newItem = TimelineItem(
                 content: plainText,
-                iconName: "lightbulb.fill",
+                iconName: icon,
                 timestamp: Date(),
                 imageData: imageData,
-                type: "inspiration"
+                type: createType // 🔥 使用传入的类型
             )
             modelContext.insert(newItem)
         }

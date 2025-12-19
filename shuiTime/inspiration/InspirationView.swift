@@ -9,14 +9,14 @@ import SwiftUI
 import SwiftData
 
 struct InspirationView: View {
-    // 🔥 修改：不再需要 showSideMenu
-    
     @Environment(\.modelContext) private var modelContext
     
     @Query(filter: #Predicate<TimelineItem> { $0.type == "inspiration" }, sort: \TimelineItem.timestamp, order: .reverse)
     private var items: [TimelineItem]
     
-    @State private var showNewInputSheet = false
+    // 🔥 已删除 showNewInputSheet 状态
+    
+    // 保留修改和删除所需的状态
     @State private var itemToEdit: TimelineItem?
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
@@ -38,7 +38,7 @@ struct InspirationView: View {
                     Image(systemName: "lightbulb.min")
                         .font(.system(size: 50))
                         .foregroundColor(.gray.opacity(0.3))
-                    Text("点击右下角记录灵感")
+                    Text("暂无灵感记录") // 文案微调，去掉了点击记录的引导
                         .foregroundColor(.gray)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -70,26 +70,9 @@ struct InspirationView: View {
                 .coordinateSpace(name: "InspirationScrollSpace")
             }
             
-            // 悬浮加号按钮
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: { showNewInputSheet = true }) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 30, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(width: 56, height: 56)
-                            .background(Color.green)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: Color.green.opacity(0.4), radius: 10, x: 0, y: 5)
-                    }
-                    .padding(.trailing, 24)
-                    .padding(.bottom, 30)
-                }
-            }
+            // 🔥 已删除：悬浮加号按钮区域
             
-            // 浮层菜单
+            // 浮层菜单 (保留修改和删除功能)
             if showCustomMenu {
                 Color.black.opacity(0.01).ignoresSafeArea().onTapGesture { withAnimation { showCustomMenu = false } }
                 VStack(spacing: 0) {
@@ -120,19 +103,19 @@ struct InspirationView: View {
             }
         }
         .navigationTitle("灵感集")
-        // 🔥 移除了 .toolbar 中的 SideMenu 按钮
         .fullScreenCover(item: $fullScreenImage) { wrapper in
             FullScreenPhotoView(image: wrapper.image)
         }
         .navigationDestination(item: $selectedTag) { tag in
             TagFilterView(tagName: tag)
         }
-        .sheet(isPresented: $showNewInputSheet) {
-            InspirationInputView(itemToEdit: nil)
-        }
+        // 🔥 已删除：.sheet(isPresented: $showNewInputSheet)
+        
+        // 保留编辑弹窗
         .sheet(item: $itemToEdit) { item in
             InspirationInputView(itemToEdit: item)
         }
+        // 保留删除确认弹窗
         .alert("确认删除?", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) { itemToDelete = nil }
             Button("删除", role: .destructive) { if let item = itemToDelete { deleteItem(item) } }

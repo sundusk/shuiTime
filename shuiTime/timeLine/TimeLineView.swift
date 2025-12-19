@@ -25,7 +25,7 @@ struct TimeLineView: View {
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
-        ZStack(alignment: .bottomTrailing) { // 修改对齐方式，为了放置 FAB
+        ZStack(alignment: .bottomTrailing) {
             
             // 背景层
             Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
@@ -35,7 +35,7 @@ struct TimeLineView: View {
                 fullScreenImage = FullScreenImage(image: image)
             })
             
-            // 🔥 新增：悬浮加号按钮 (仿 InspirationView 样式)
+            // 悬浮加号按钮
             VStack {
                 Spacer()
                 HStack {
@@ -45,7 +45,7 @@ struct TimeLineView: View {
                             .font(.system(size: 30, weight: .medium))
                             .foregroundColor(.white)
                             .frame(width: 56, height: 56)
-                            .background(Color.blue) // 时间线用蓝色主题
+                            .background(Color.blue)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .shadow(color: Color.blue.opacity(0.4), radius: 10, x: 0, y: 5)
                     }
@@ -88,9 +88,9 @@ struct TimeLineView: View {
                     .presentationDetents([.medium])
             }
         }
-        // 🔥 新增：输入弹窗
+        // 使用 InspirationInputView 替换旧的输入弹窗，并指定类型为 timeline
         .sheet(isPresented: $showInputSheet) {
-            TimelineInputSheet()
+            InspirationInputView(itemToEdit: nil, createType: "timeline")
         }
         .fullScreenCover(item: $fullScreenImage) { wrapper in
             FullScreenPhotoView(image: wrapper.image)
@@ -105,96 +105,7 @@ struct TimeLineView: View {
     }
 }
 
-// MARK: - 新增：TimelineInputSheet (用于替代 InputBarView)
-struct TimelineInputSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    
-    @State private var content: String = ""
-    @State private var selectedImage: UIImage? = nil
-    @State private var showImagePicker = false
-    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
-    
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("内容")) {
-                    TextField("记录当下的想法...", text: $content, axis: .vertical)
-                        .lineLimit(3...8)
-                }
-                
-                Section(header: Text("图片")) {
-                    if let image = selectedImage {
-                        ZStack(alignment: .topTrailing) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(height: 200)
-                                .frame(maxWidth: .infinity)
-                                .cornerRadius(8)
-                                .clipped()
-                                .listRowInsets(EdgeInsets())
-                            
-                            Button(action: {
-                                withAnimation { selectedImage = nil }
-                            }) {
-                                Image(systemName: "trash.circle.fill")
-                                    .font(.title)
-                                    .foregroundColor(.red)
-                                    .background(Circle().fill(.white))
-                            }
-                            .padding(8)
-                        }
-                    } else {
-                        Button(action: {
-                            sourceType = .photoLibrary
-                            showImagePicker = true
-                        }) {
-                            HStack {
-                                Image(systemName: "photo")
-                                Text("添加图片")
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("新记录")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
-                        saveItem()
-                        dismiss()
-                    }
-                    .disabled(content.isEmpty && selectedImage == nil)
-                }
-            }
-            .sheet(isPresented: $showImagePicker) {
-                ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
-            }
-        }
-    }
-    
-    private func saveItem() {
-        let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
-        let icon = imageData != nil ? "photo" : "text.bubble"
-        
-        let newItem = TimelineItem(
-            content: content,
-            iconName: icon,
-            timestamp: Date(),
-            imageData: imageData,
-            type: "timeline"
-        )
-        modelContext.insert(newItem)
-        try? modelContext.save()
-    }
-}
-
-// MARK: - 列表视图 (保持基本不变，只删除了 showSideMenu 绑定)
+// MARK: - 列表视图
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
@@ -267,7 +178,7 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 单行组件 (保持不变)
+// MARK: - 单行组件
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
@@ -275,6 +186,7 @@ struct TimelineRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // 左侧时间线轴
             VStack(spacing: 0) {
                 Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
                 Circle().fill(Color.blue).frame(width: 10, height: 10)
@@ -285,21 +197,42 @@ struct TimelineRowView: View {
             }
             .frame(width: 20)
             
+            // 右侧内容卡片
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.timestamp.formatted(date: .omitted, time: .shortened))
                     .font(.caption).foregroundColor(.secondary).padding(.top, 10)
                 
                 VStack(alignment: .leading, spacing: 8) {
+                    // 图片显示
                     if let data = item.imageData, let uiImage = UIImage(data: data) {
                         Image(uiImage: uiImage)
                             .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
                             .cornerRadius(8).clipped()
                             .onTapGesture { onImageTap?(uiImage) }
                     }
+                    
+                    // 文字内容显示 (支持标签高亮)
                     if !item.content.isEmpty {
                         HStack(alignment: .top) {
-                            Image(systemName: item.iconName).foregroundColor(.brown)
-                            Text(item.content).font(.body).foregroundColor(.primary).lineLimit(nil)
+                            Image(systemName: item.iconName)
+                                .foregroundColor(.brown)
+                                .padding(.top, 2)
+                            
+                            // 解析内容并布局
+                            let segments = parseContent(item.content)
+                            FlowLayout(spacing: 4) {
+                                ForEach(segments.indices, id: \.self) { index in
+                                    let segment = segments[index]
+                                    if segment.isTag {
+                                        Text(segment.text)
+                                            .font(.body).foregroundColor(.blue)
+                                            .padding(.vertical, 2).padding(.horizontal, 6)
+                                            .background(Color.blue.opacity(0.1)).cornerRadius(4)
+                                    } else {
+                                        Text(segment.text).font(.body).foregroundColor(.primary)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -310,6 +243,26 @@ struct TimelineRowView: View {
             }
             Spacer()
         }
+    }
+    
+    // 解析逻辑 (返回值改为了 TimelineTextSegment)
+    func parseContent(_ text: String) -> [TimelineTextSegment] {
+        var segments: [TimelineTextSegment] = []
+        let lines = text.components(separatedBy: "\n")
+        for (lineIndex, line) in lines.enumerated() {
+            let words = line.split(separator: " ", omittingEmptySubsequences: false)
+            for (wordIndex, word) in words.enumerated() {
+                let stringWord = String(word)
+                if stringWord.hasPrefix("#") && stringWord.count > 1 {
+                    segments.append(TimelineTextSegment(text: stringWord, isTag: true))
+                } else if !stringWord.isEmpty {
+                    segments.append(TimelineTextSegment(text: stringWord, isTag: false))
+                }
+                if wordIndex < words.count - 1 { segments.append(TimelineTextSegment(text: " ", isTag: false)) }
+            }
+            if lineIndex < lines.count - 1 { segments.append(TimelineTextSegment(text: "\n", isTag: false)) }
+        }
+        return segments
     }
 }
 
@@ -322,6 +275,14 @@ struct EmptyStateView: View {
         }
         .offset(y: -40)
     }
+}
+
+// 🔥 重命名为 TimelineTextSegment，避免和 InspirationView 的 TextSegment 冲突
+// 🔥 去掉了 private，因为 TimelineRowView (internal) 使用了它
+struct TimelineTextSegment: Identifiable {
+    let id = UUID()
+    let text: String
+    let isTag: Bool
 }
 
 #Preview {
