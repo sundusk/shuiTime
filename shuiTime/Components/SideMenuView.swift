@@ -6,59 +6,111 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SideMenuView: View {
     @Binding var isOpen: Bool
+    // 🔥 1. 点击标签的回调闭包
+    var onTagSelected: ((String) -> Void)?
     
-    // 🔥 新增：接收今天是否有内容的状态
-    var hasContentToday: Bool
+    // 获取数据库所有数据
+    @Query private var allItems: [TimelineItem]
     
-    // 计算“今天”在网格中的位置 (假设最后一列是本周)
-    var todayGridPosition: (col: Int, row: Int) {
-        let weekday = Calendar.current.component(.weekday, from: Date()) // Sun=1...Sat=7
-        // 转换：Mon=0 ... Sun=6
-        let row = (weekday + 5) % 7
-        return (col: 11, row: row)
+    // MARK: - 统计逻辑
+    var noteCount: Int { allItems.count }
+    
+    var tagCount: Int { allTags.count }
+    
+    // 计算所有唯一的标签
+    var allTags: [String] {
+        let inspirationItems = allItems.filter { $0.type == "inspiration" }
+        var uniqueTags = Set<String>()
+        for item in inspirationItems {
+            let lines = item.content.components(separatedBy: "\n")
+            for line in lines {
+                let words = line.split(separator: " ")
+                for word in words {
+                    let stringWord = String(word)
+                    if stringWord.hasPrefix("#") && stringWord.count > 1 {
+                        uniqueTags.insert(stringWord)
+                    }
+                }
+            }
+        }
+        return Array(uniqueTags).sorted()
+    }
+    
+    var dayCount: Int {
+        let timelineItems = allItems.filter { $0.type == "timeline" }
+        let uniqueDays = Set(timelineItems.map { Calendar.current.startOfDay(for: $0.timestamp) })
+        return uniqueDays.count
+    }
+    
+    // MARK: - 热力图数据
+    struct HeatMapDay: Identifiable {
+        let id = UUID()
+        let date: Date
+        let count: Int
+        let isToday: Bool
+    }
+    
+    var heatMapData: [[HeatMapDay]] {
+        var weeks: [[HeatMapDay]] = []
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+        components.weekday = 2
+        
+        guard let startOfCurrentWeek = calendar.date(from: components) else { return [] }
+        
+        let notesByDay = Dictionary(grouping: allItems) { item in
+            calendar.startOfDay(for: item.timestamp)
+        }.mapValues { $0.count }
+        
+        for weekOffset in (0..<17).reversed() {
+            var weekDays: [HeatMapDay] = []
+            if let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: startOfCurrentWeek) {
+                for dayOffset in 0..<7 {
+                    if let date = calendar.date(byAdding: .day, value: dayOffset, to: weekStart) {
+                        let startOfDay = calendar.startOfDay(for: date)
+                        let count = notesByDay[startOfDay] ?? 0
+                        let isToday = calendar.isDateInToday(date)
+                        weekDays.append(HeatMapDay(date: date, count: count, isToday: isToday))
+                    }
+                }
+            }
+            weeks.append(weekDays)
+        }
+        return weeks
     }
     
     var body: some View {
         ZStack(alignment: .leading) {
             
-            // 1. 半透明遮罩
+            // 遮罩
             if isOpen {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isOpen = false
-                        }
-                    }
+                    .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { isOpen = false } }
             }
             
-            // 2. 侧滑栏主体
+            // 侧滑栏主体
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     
-                    // --- 顶部用户信息 (保持不变) ---
+                    // --- 顶部用户信息 ---
                     HStack {
                         HStack(spacing: 12) {
                             Circle()
                                 .fill(Color.blue.opacity(0.1))
                                 .frame(width: 44, height: 44)
-                                .overlay(Text("承").foregroundColor(.blue).bold())
+                                .overlay(Text("M").foregroundColor(.blue).bold())
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
-                                    Text("承曦")
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-                                    Text("⚡️升级PRO")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.orange.opacity(0.15))
-                                        .foregroundColor(.orange)
-                                        .cornerRadius(4)
+                                    Text("Momo").font(.headline).foregroundColor(.primary)
+                                    Text("PRO").font(.system(size: 10, weight: .bold))
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Color.orange.opacity(0.15)).foregroundColor(.orange).cornerRadius(4)
                                 }
                             }
                         }
@@ -70,69 +122,109 @@ struct SideMenuView: View {
                         .foregroundColor(.gray)
                         .font(.system(size: 20))
                     }
-                    .padding(.top, 60)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 30)
+                    .padding(.top, 60).padding(.horizontal, 24).padding(.bottom, 30)
                     
-                    // --- 统计数据栏 (保持不变) ---
+                    // --- 统计数据 ---
                     HStack {
-                        StatItemView(number: "2", title: "笔记")
+                        StatItemView(number: "\(noteCount)", title: "笔记")
                         Spacer()
-                        StatItemView(number: "2", title: "标签")
+                        StatItemView(number: "\(tagCount)", title: "标签")
                         Spacer()
-                        StatItemView(number: "47", title: "天")
+                        StatItemView(number: "\(dayCount)", title: "天")
                     }
-                    .padding(.horizontal, 36)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, 24).padding(.bottom, 24)
                     
-                    // --- 热力图 (7行 x 12列) ---
+                    // --- 热力图 ---
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 0) {
-                            ForEach(0..<12, id: \.self) { col in
-                                VStack(spacing: 4) {
-                                    ForEach(0..<7, id: \.self) { row in
-                                        
-                                        // 判断格子是否是“今天”
-                                        let isToday = (col == todayGridPosition.col && row == todayGridPosition.row)
-                                        
-                                        if isToday {
-                                            // 🔥 核心逻辑修改：
-                                            // 1. 始终显示绿色描边 (代表这是今天)
-                                            // 2. 如果 hasContentToday 为 true，填充浅绿色；否则透明
-                                            RoundedRectangle(cornerRadius: 3)
-                                                .stroke(Color.green, lineWidth: 1.5)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 3)
-                                                        .fill(hasContentToday ? Color.green.opacity(0.5) : Color.clear)
-                                                )
-                                                .frame(width: 12, height: 12)
-                                        } else {
-                                            // 其他日期的样式 (保持原样或随机模拟)
-                                            RoundedRectangle(cornerRadius: 2)
-                                                .fill(heatMapColor(col: col, row: row))
-                                                .frame(width: 12, height: 12)
-                                        }
+                        HStack(spacing: 3) {
+                            ForEach(heatMapData.indices, id: \.self) { weekIndex in
+                                let week = heatMapData[weekIndex]
+                                VStack(spacing: 3) {
+                                    ForEach(week) { day in
+                                        HeatMapCell(day: day)
                                     }
                                 }
-                                if col < 11 { Spacer() }
                             }
                         }
                         
-                        // 月份标签 (保持不变)
-                        HStack(spacing: 0) {
-                            Text("10月").font(.caption2).frame(width: 50, alignment: .leading)
+                        // 底部说明
+                        HStack {
+                            Text("Less").font(.caption2).foregroundColor(.secondary)
+                            HStack(spacing: 2) {
+                                RoundedRectangle(cornerRadius: 1).fill(Color.secondary.opacity(0.1)).frame(width: 8, height: 8)
+                                RoundedRectangle(cornerRadius: 1).fill(Color.green.opacity(0.4)).frame(width: 8, height: 8)
+                                RoundedRectangle(cornerRadius: 1).fill(Color.green).frame(width: 8, height: 8)
+                            }
+                            Text("More").font(.caption2).foregroundColor(.secondary)
                             Spacer()
-                            Text("11月").font(.caption2).frame(width: 50, alignment: .leading)
-                            Spacer()
-                            Text("12月").font(.caption2).frame(width: 50, alignment: .leading)
                         }
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 0)
+                        .padding(.top, 4)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 30)
+                    .padding(.bottom, 20)
+                    
+                    Divider()
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 20)
+                    
+                    // --- 🔥 全部标签区域 ---
+                    VStack(alignment: .leading, spacing: 12) {
+                        // 标题栏
+                        HStack {
+                            Text("全部标签")
+                                .font(.headline)
+                                .foregroundColor(.gray)
+                            Spacer()
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        if allTags.isEmpty {
+                            Text("暂无标签").font(.caption).foregroundColor(.gray)
+                                .padding(.top, 10)
+                        } else {
+                            // 🔥 修改点：添加 showsIndicators: false 隐藏滚动条
+                            ScrollView(.vertical, showsIndicators: false) {
+                                VStack(spacing: 0) {
+                                    ForEach(allTags, id: \.self) { tag in
+                                        Button(action: {
+                                            // 触发跳转回调
+                                            onTagSelected?(tag)
+                                        }) {
+                                            HStack {
+                                                // 左侧 # 号
+                                                Text("#")
+                                                    .font(.system(size: 22, weight: .bold))
+                                                    .foregroundColor(.secondary.opacity(0.7))
+                                                
+                                                // 标签文字
+                                                Text(tag.replacingOccurrences(of: "#", with: ""))
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(.primary)
+                                                
+                                                Spacer()
+                                                
+                                                // 右侧 ... 图标
+                                                Image(systemName: "ellipsis")
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            .padding(.vertical, 8)
+                                            .contentShape(Rectangle()) // 确保点击区域铺满整行
+                                        }
+                                    }
+                                }
+                                .padding(.bottom, 20)
+                            }
+                            .frame(maxHeight: 220) // 限制高度
+                        }
+                    }
+                    .padding(.horizontal, 24)
                     
                     Spacer()
+                    
+                    Text("v1.0.1").font(.caption).foregroundColor(.gray.opacity(0.5)).padding()
                 }
                 .frame(width: 300)
                 .background(Color(uiColor: .systemBackground))
@@ -143,11 +235,23 @@ struct SideMenuView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isOpen)
     }
-    
-    func heatMapColor(col: Int, row: Int) -> Color {
-        let randomSeed = (col * 7 + row) * 13
-        let hasData = (randomSeed % 7 == 0) || (col > 9 && row % 2 != 0)
-        return hasData ? Color.green.opacity(0.7) : Color.secondary.opacity(0.15)
+}
+
+// MARK: - 辅助组件
+struct HeatMapCell: View {
+    let day: SideMenuView.HeatMapDay
+    var body: some View {
+        var color: Color {
+            if day.count == 0 { return Color.secondary.opacity(0.1) }
+            if day.count <= 2 { return Color.green.opacity(0.4) }
+            return Color.green
+        }
+        return ZStack {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 12, height: 12)
+            if day.isToday {
+                RoundedRectangle(cornerRadius: 2).stroke(Color.primary.opacity(0.5), lineWidth: 1).frame(width: 12, height: 12)
+            }
+        }
     }
 }
 
@@ -160,9 +264,4 @@ struct StatItemView: View {
             Text(title).font(.caption).foregroundColor(.secondary)
         }
     }
-}
-
-// 预览时需传入假数据
-#Preview {
-    SideMenuView(isOpen: .constant(true), hasContentToday: true)
 }
