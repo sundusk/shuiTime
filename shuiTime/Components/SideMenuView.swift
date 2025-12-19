@@ -10,7 +10,14 @@ import SwiftData
 
 struct SideMenuView: View {
     @Binding var isOpen: Bool
-    // 🔥 1. 点击标签的回调闭包
+    
+    // ✅ 修复报错：接收今天是否有内容的状态
+    var hasContentToday: Bool
+    
+    // ✅ 新增功能：控制是否显示标签区域
+    var showTags: Bool
+    
+    // 点击标签的回调闭包
     var onTagSelected: ((String) -> Void)?
     
     // 获取数据库所有数据
@@ -167,60 +174,61 @@ struct SideMenuView: View {
                         .padding(.horizontal, 24)
                         .padding(.bottom, 20)
                     
-                    // --- 🔥 全部标签区域 ---
-                    VStack(alignment: .leading, spacing: 12) {
-                        // 标题栏
-                        HStack {
-                            Text("全部标签")
-                                .font(.headline)
-                                .foregroundColor(.gray)
-                            Spacer()
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                        
-                        if allTags.isEmpty {
-                            Text("暂无标签").font(.caption).foregroundColor(.gray)
-                                .padding(.top, 10)
-                        } else {
-                            // 🔥 修改点：添加 showsIndicators: false 隐藏滚动条
-                            ScrollView(.vertical, showsIndicators: false) {
-                                VStack(spacing: 0) {
-                                    ForEach(allTags, id: \.self) { tag in
-                                        Button(action: {
-                                            // 触发跳转回调
-                                            onTagSelected?(tag)
-                                        }) {
-                                            HStack {
-                                                // 左侧 # 号
-                                                Text("#")
-                                                    .font(.system(size: 22, weight: .bold))
-                                                    .foregroundColor(.secondary.opacity(0.7))
-                                                
-                                                // 标签文字
-                                                Text(tag.replacingOccurrences(of: "#", with: ""))
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(.primary)
-                                                
-                                                Spacer()
-                                                
-                                                // 右侧 ... 图标
-                                                Image(systemName: "ellipsis")
-                                                    .font(.system(size: 14))
-                                                    .foregroundColor(.gray)
+                    // --- 🔥 全部标签区域 (仅在 showTags 为 true 时显示) ---
+                    if showTags {
+                        VStack(alignment: .leading, spacing: 12) {
+                            // 标题栏
+                            HStack {
+                                Text("全部标签")
+                                    .font(.headline)
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            if allTags.isEmpty {
+                                Text("暂无标签").font(.caption).foregroundColor(.gray)
+                                    .padding(.top, 10)
+                            } else {
+                                ScrollView(.vertical, showsIndicators: false) {
+                                    VStack(spacing: 0) {
+                                        ForEach(allTags, id: \.self) { tag in
+                                            Button(action: {
+                                                // 🔥 触发跳转回调
+                                                onTagSelected?(tag)
+                                            }) {
+                                                HStack {
+                                                    // 左侧 # 号
+                                                    Text("#")
+                                                        .font(.system(size: 22, weight: .bold))
+                                                        .foregroundColor(.secondary.opacity(0.7))
+                                                    
+                                                    // 标签文字
+                                                    Text(tag.replacingOccurrences(of: "#", with: ""))
+                                                        .font(.system(size: 16, weight: .medium))
+                                                        .foregroundColor(.primary)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    // 右侧 ... 图标
+                                                    Image(systemName: "ellipsis")
+                                                        .font(.system(size: 14))
+                                                        .foregroundColor(.gray)
+                                                }
+                                                .padding(.vertical, 8)
+                                                .contentShape(Rectangle()) // 确保点击区域铺满整行
                                             }
-                                            .padding(.vertical, 8)
-                                            .contentShape(Rectangle()) // 确保点击区域铺满整行
                                         }
                                     }
+                                    .padding(.bottom, 20)
                                 }
-                                .padding(.bottom, 20)
+                                .frame(maxHeight: 220) // 限制高度
                             }
-                            .frame(maxHeight: 220) // 限制高度
                         }
+                        .padding(.horizontal, 24)
                     }
-                    .padding(.horizontal, 24)
                     
                     Spacer()
                     

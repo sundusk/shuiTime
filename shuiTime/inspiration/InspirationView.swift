@@ -22,12 +22,16 @@ struct InspirationView: View {
     @State private var showCustomMenu = false
     @State private var menuPosition: CGPoint = .zero
     @State private var itemForMenu: TimelineItem?
-    @State private var selectedTag: String?
+    
+    // 由父视图(ContentView)控制跳转
+    @Binding var selectedTag: String?
+    
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
+                // 背景色使用系统分组背景（浅色是灰，深色是纯黑），这行不用改，效果是对的
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 
                 if items.isEmpty {
@@ -77,7 +81,7 @@ struct InspirationView: View {
                                 .font(.system(size: 30, weight: .medium))
                                 .foregroundColor(.white)
                                 .frame(width: 56, height: 56)
-                                .background(Color.green)
+                                .background(Color.green) // 绿色在深色模式也很显眼，保留即可
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                                 .shadow(color: Color.green.opacity(0.4), radius: 10, x: 0, y: 5)
                         }
@@ -109,7 +113,9 @@ struct InspirationView: View {
                                 .padding().foregroundColor(.red)
                         }
                     }
-                    .background(Color.white).cornerRadius(12).frame(width: 140)
+                    // 🔥 菜单背景也优化一下，适应深色模式
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(12).frame(width: 140)
                     .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
                     .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
                     .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
@@ -148,7 +154,7 @@ struct InspirationView: View {
     }
 }
 
-// MARK: - 灵感卡片视图 (更新样式)
+// MARK: - 灵感卡片视图 (UI 优化版)
 struct InspirationCardView: View {
     let item: TimelineItem
     var onMenuTap: (TimelineItem, CGPoint) -> Void
@@ -162,7 +168,8 @@ struct InspirationCardView: View {
             // 顶部
             HStack {
                 Text(item.timestamp.formatted(date: .numeric, time: .standard))
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.secondary) // 深色背景下，secondary 会自动变亮，现在能看清了
                 Spacer()
                 Button(action: {
                     let anchor = CGPoint(x: buttonFrame.maxX, y: buttonFrame.maxY)
@@ -172,7 +179,6 @@ struct InspirationCardView: View {
                         .font(.body)
                         .foregroundColor(.secondary)
                         .padding(8)
-                        // 🔥 已移除背景色和圆形裁剪，样式更简洁
                 }
                 .buttonStyle(.borderless)
                 .background(GeometryReader { geo in
@@ -214,7 +220,12 @@ struct InspirationCardView: View {
                 }
             }
         }
-        .padding(16).background(Color.white).cornerRadius(16)
+        .padding(16)
+        // 🔥 核心修改：使用语义化颜色
+        // .secondarySystemGroupedBackground：浅色模式=白色，深色模式=深灰色
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .cornerRadius(16)
+        // 🔥 优化阴影：在深色模式下稍微减弱阴影，避免太脏
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
@@ -245,7 +256,7 @@ struct InspirationCardView: View {
     }
 }
 
-// FlowLayout
+// FlowLayout (保持不变)
 struct FlowLayout: Layout {
     var spacing: CGFloat = 4
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

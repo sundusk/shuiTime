@@ -126,7 +126,9 @@ struct TagFilterView: View {
                                 .padding().foregroundColor(.red)
                         }
                     }
-                    .background(Color.white).cornerRadius(12).frame(width: 140)
+                    // 🔥 菜单背景色优化
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(12).frame(width: 140)
                     .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
                     .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
                     .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
@@ -141,7 +143,8 @@ struct TagFilterView: View {
                         Image(systemName: "chevron.left")
                             .foregroundColor(.primary)
                             .padding(8)
-                            .background(Color.white)
+                            // 🔥 返回按钮背景色优化
+                            .background(Color(uiColor: .secondarySystemGroupedBackground))
                             .clipShape(Circle())
                             .shadow(color: .black.opacity(0.05), radius: 3)
                     }
@@ -161,7 +164,6 @@ struct TagFilterView: View {
             }
             .alert("确认删除?", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) { itemToDelete = nil }
-                // 🔥 修复点：直接调用函数 deleteItem(item)，而不是在闭包里写 modelContext.delete
                 Button("删除", role: .destructive) {
                     if let item = itemToDelete {
                         deleteItem(item)
