@@ -7,14 +7,68 @@
 
 import SwiftUI
 import SwiftData
+import UIKit // 需要引入 UIKit 来支持 UIScrollView
 
-// MARK: - 1. 新增：全屏图片的数据包装器
+// MARK: - 1. 全屏图片的数据包装器
 struct FullScreenImage: Identifiable {
     let id = UUID()
     let image: UIImage
 }
 
-// MARK: - 2. 新增：全屏图片查看视图
+// MARK: - 2. 新增：支持缩放的图片视图 (UIViewRepresentable)
+struct ZoomableImageView: UIViewRepresentable {
+    var image: UIImage
+    
+    func makeUIView(context: Context) -> UIScrollView {
+        // 配置 ScrollView
+        let scrollView = UIScrollView()
+        scrollView.delegate = context.coordinator
+        scrollView.maximumZoomScale = 4.0 // 最大放大倍数
+        scrollView.minimumZoomScale = 1.0 // 最小缩小倍数
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.backgroundColor = .clear
+        
+        // 配置 ImageView
+        let imageView = UIImageView(image: image)
+        imageView.contentMode = .scaleAspectFit
+        imageView.clipsToBounds = true
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        scrollView.addSubview(imageView)
+        context.coordinator.imageView = imageView
+        
+        // 添加布局约束：让 ImageView 初始大小填满 ScrollView
+        NSLayoutConstraint.activate([
+            imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            imageView.heightAnchor.constraint(equalTo: scrollView.heightAnchor),
+            imageView.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            imageView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor)
+        ])
+        
+        return scrollView
+    }
+    
+    func updateUIView(_ uiView: UIScrollView, context: Context) {
+        // 这里不需要频繁更新，因为图片是静态的
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    // 代理协调器：处理缩放逻辑
+    class Coordinator: NSObject, UIScrollViewDelegate {
+        var imageView: UIImageView?
+        
+        // 告诉 ScrollView 哪个视图需要被缩放
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+            return imageView
+        }
+    }
+}
+
+// MARK: - 3. 全屏图片查看容器
 struct FullScreenPhotoView: View {
     let image: UIImage
     @Environment(\.dismiss) var dismiss
@@ -24,11 +78,9 @@ struct FullScreenPhotoView: View {
             // 黑色背景
             Color.black.ignoresSafeArea()
             
-            // 图片
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .draggableAndZoomable() // 可选：如果你想支持缩放，可以搜一下 SwiftUI Zoomable Image，这里先做基础展示
+            // 🔥 使用支持缩放的图片视图
+            ZoomableImageView(image: image)
+                .ignoresSafeArea() // 让图片可以全屏展示
             
             // 关闭按钮
             VStack {
@@ -39,19 +91,17 @@ struct FullScreenPhotoView: View {
                             .font(.system(size: 30))
                             .foregroundColor(.white.opacity(0.8))
                             .padding()
+                            .padding(.top, 40) // 避开刘海屏
                     }
                 }
                 Spacer()
             }
         }
-        // 点击背景也能关闭
-        .onTapGesture {
-            dismiss()
-        }
+        // 点击背景也可以关闭（可选，看个人喜好，有时会和缩放手势冲突，这里主要依靠关闭按钮）
     }
 }
 
-// MARK: - 3. 主视图
+// MARK: - 4. 主视图
 struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var showSideMenu: Bool
@@ -60,7 +110,7 @@ struct TimeLineView: View {
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
     
-    // 🔥 新增：控制全屏图片的状态
+    // 控制全屏图片的状态
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
@@ -112,7 +162,7 @@ struct TimeLineView: View {
                         .presentationDetents([.medium])
                 }
             }
-            // 🔥 新增：全屏图片覆盖层
+            // 全屏图片覆盖层
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
@@ -129,7 +179,7 @@ struct TimeLineView: View {
     }
 }
 
-// MARK: - 4. 列表视图
+// MARK: - 5. 列表视图
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
@@ -139,7 +189,7 @@ struct TimelineListView: View {
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
     
-    // 🔥 新增：接收点击回调
+    // 接收点击回调
     var onImageTap: (UIImage) -> Void
     
     init(date: Date, onImageTap: @escaping (UIImage) -> Void) {
@@ -172,7 +222,7 @@ struct TimelineListView: View {
                         TimelineRowView(
                             item: item,
                             isLast: index == items.count - 1,
-                            onImageTap: onImageTap // 传递回调
+                            onImageTap: onImageTap
                         )
                         .contextMenu {
                             Button { itemToEdit = item } label: { Label("修改", systemImage: "pencil") }
@@ -213,11 +263,10 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 5. 单行组件
+// MARK: - 6. 单行组件
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
-    // 🔥 新增：回调闭包
     var onImageTap: ((UIImage) -> Void)?
     
     var body: some View {
@@ -259,7 +308,7 @@ struct TimelineRowView: View {
                             .frame(maxWidth: .infinity)
                             .cornerRadius(8)
                             .clipped()
-                            // 🔥 新增：点击手势
+                            // 点击手势
                             .onTapGesture {
                                 onImageTap?(uiImage)
                             }
@@ -288,7 +337,7 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 6. 输入栏 (保持不变)
+// MARK: - 7. 输入栏 (保持不变)
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var inputText: String = ""
@@ -366,7 +415,6 @@ struct InputBarView: View {
         let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         let icon = imageData != nil ? "photo" : "text.bubble"
         
-        // 记录时间永远是“现在”
         let newItem = TimelineItem(
             content: inputText,
             iconName: icon,
@@ -383,7 +431,7 @@ struct InputBarView: View {
     }
 }
 
-// MARK: - 7. 空状态视图
+// MARK: - 8. 空状态视图
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
@@ -398,15 +446,6 @@ struct EmptyStateView: View {
                 .foregroundColor(.gray.opacity(0.6))
         }
         .offset(y: -40)
-    }
-}
-
-// MARK: - 扩展：辅助动画
-extension View {
-    // 这里放置一个空的 ViewModifier 占位，
-    // 如果你后面需要做复杂的图片缩放逻辑，可以在这里扩展
-    func draggableAndZoomable() -> some View {
-        self // 暂时直接返回自身
     }
 }
 
