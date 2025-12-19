@@ -17,20 +17,15 @@ struct TimeLineView: View {
     
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
-    
-    // 控制新建输入的弹窗
     @State private var showInputSheet: Bool = false
-    
-    // 全屏图片
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            
-            // 背景层
+            // 背景
             Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
             
-            // 列表层
+            // 列表内容
             TimelineListView(date: selectedDate, onImageTap: { image in
                 fullScreenImage = FullScreenImage(image: image)
             })
@@ -65,11 +60,9 @@ struct TimeLineView: View {
                 Button(action: { showCalendar = true }) {
                     HStack(spacing: 4) {
                         Text(dateString(selectedDate))
-                            .font(.headline)
-                            .foregroundColor(.primary)
+                            .font(.headline).foregroundColor(.primary)
                         Image(systemName: "chevron.down.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.caption).foregroundColor(.secondary)
                     }
                 }
             }
@@ -88,7 +81,6 @@ struct TimeLineView: View {
                     .presentationDetents([.medium])
             }
         }
-        // 使用 InspirationInputView 替换旧的输入弹窗，并指定类型为 timeline
         .sheet(isPresented: $showInputSheet) {
             InspirationInputView(itemToEdit: nil, createType: "timeline")
         }
@@ -100,8 +92,7 @@ struct TimeLineView: View {
     func dateString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY年MM月dd日"
-        if Calendar.current.isDateInToday(date) { return "今日" }
-        return formatter.string(from: date)
+        return Calendar.current.isDateInToday(date) ? "今日" : formatter.string(from: date)
     }
 }
 
@@ -117,7 +108,6 @@ struct TimelineListView: View {
     
     init(date: Date, onImageTap: @escaping (UIImage) -> Void) {
         self.onImageTap = onImageTap
-        
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
@@ -158,23 +148,18 @@ struct TimelineListView: View {
             }
             .scrollClipDisabled(false)
             .sheet(item: $itemToEdit) { item in
-                EditTimelineView(item: item)
+                InspirationInputView(itemToEdit: item, createType: "timeline")
             }
             .alert("确认删除?", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) { itemToDelete = nil }
                 Button("删除", role: .destructive) {
-                    if let item = itemToDelete { deleteItem(item) }
+                    if let item = itemToDelete {
+                        withAnimation { modelContext.delete(item); try? modelContext.save() }
+                    }
+                    itemToDelete = nil
                 }
             } message: { Text("删除后将无法恢复这条记录。") }
         }
-    }
-    
-    private func deleteItem(_ item: TimelineItem) {
-        withAnimation {
-            modelContext.delete(item)
-            try? modelContext.save()
-        }
-        itemToDelete = nil
     }
 }
 
@@ -186,7 +171,7 @@ struct TimelineRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // 左侧时间线轴
+            // 左侧时间轴
             VStack(spacing: 0) {
                 Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
                 Circle().fill(Color.blue).frame(width: 10, height: 10)
@@ -197,13 +182,13 @@ struct TimelineRowView: View {
             }
             .frame(width: 20)
             
-            // 右侧内容卡片
+            // 右侧卡片内容
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.timestamp.formatted(date: .omitted, time: .shortened))
                     .font(.caption).foregroundColor(.secondary).padding(.top, 10)
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    // 图片显示
+                    // 图片
                     if let data = item.imageData, let uiImage = UIImage(data: data) {
                         Image(uiImage: uiImage)
                             .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
@@ -211,26 +196,35 @@ struct TimelineRowView: View {
                             .onTapGesture { onImageTap?(uiImage) }
                     }
                     
-                    // 文字内容显示 (支持标签高亮)
+                    // 文字混排
                     if !item.content.isEmpty {
-                        HStack(alignment: .top) {
-                            Image(systemName: item.iconName)
-                                .foregroundColor(.brown)
-                                .padding(.top, 2)
+                        TimelineTagLayout(spacing: 6) {
+                            // 🔥 这里是闪光点图标的显示逻辑
+                            if item.isHighlight {
+                                Image(systemName: "star.fill")
+                                    .font(.subheadline)
+                                    .foregroundColor(.orange)
+                                    .padding(.top, 2)
+                            }
                             
-                            // 解析内容并布局
                             let segments = parseContent(item.content)
-                            FlowLayout(spacing: 4) {
-                                ForEach(segments.indices, id: \.self) { index in
-                                    let segment = segments[index]
-                                    if segment.isTag {
+                            ForEach(segments.indices, id: \.self) { index in
+                                let segment = segments[index]
+                                if segment.isTag {
+                                    NavigationLink(destination: TagFilterView(tagName: segment.text)) {
                                         Text(segment.text)
-                                            .font(.body).foregroundColor(.blue)
-                                            .padding(.vertical, 2).padding(.horizontal, 6)
-                                            .background(Color.blue.opacity(0.1)).cornerRadius(4)
-                                    } else {
-                                        Text(segment.text).font(.body).foregroundColor(.primary)
+                                            .font(.subheadline)
+                                            .foregroundColor(.blue)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 3)
+                                            .background(Color.blue.opacity(0.1))
+                                            .cornerRadius(4)
                                     }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Text(segment.text)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
                                 }
                             }
                         }
@@ -238,29 +232,33 @@ struct TimelineRowView: View {
                 }
                 .padding(12).background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(12).shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                .contentShape(Rectangle())
+                // 🔥 如果是高亮状态，可以加个金色边框或阴影增强提示
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(item.isHighlight ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 2)
+                )
                 .padding(.bottom, 20)
             }
             Spacer()
         }
     }
     
-    // 解析逻辑 (返回值改为了 TimelineTextSegment)
-    func parseContent(_ text: String) -> [TimelineTextSegment] {
-        var segments: [TimelineTextSegment] = []
+    // 解析逻辑
+    func parseContent(_ text: String) -> [TimelineContentSegment] {
+        var segments: [TimelineContentSegment] = []
         let lines = text.components(separatedBy: "\n")
         for (lineIndex, line) in lines.enumerated() {
             let words = line.split(separator: " ", omittingEmptySubsequences: false)
             for (wordIndex, word) in words.enumerated() {
                 let stringWord = String(word)
                 if stringWord.hasPrefix("#") && stringWord.count > 1 {
-                    segments.append(TimelineTextSegment(text: stringWord, isTag: true))
+                    segments.append(TimelineContentSegment(text: stringWord, isTag: true))
                 } else if !stringWord.isEmpty {
-                    segments.append(TimelineTextSegment(text: stringWord, isTag: false))
+                    segments.append(TimelineContentSegment(text: stringWord, isTag: false))
                 }
-                if wordIndex < words.count - 1 { segments.append(TimelineTextSegment(text: " ", isTag: false)) }
+                if wordIndex < words.count - 1 { segments.append(TimelineContentSegment(text: " ", isTag: false)) }
             }
-            if lineIndex < lines.count - 1 { segments.append(TimelineTextSegment(text: "\n", isTag: false)) }
+            if lineIndex < lines.count - 1 { segments.append(TimelineContentSegment(text: "\n", isTag: false)) }
         }
         return segments
     }
@@ -277,12 +275,38 @@ struct EmptyStateView: View {
     }
 }
 
-// 🔥 重命名为 TimelineTextSegment，避免和 InspirationView 的 TextSegment 冲突
-// 🔥 去掉了 private，因为 TimelineRowView (internal) 使用了它
-struct TimelineTextSegment: Identifiable {
+// 辅助结构
+struct TimelineContentSegment: Identifiable {
     let id = UUID()
     let text: String
     let isTag: Bool
+}
+
+struct TimelineTagLayout: Layout {
+    var spacing: CGFloat = 6
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = flow(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = flow(proposal: proposal, subviews: subviews)
+        for (index, point) in result.points.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
+        }
+    }
+    struct LayoutResult { var size: CGSize; var points: [CGPoint] }
+    func flow(proposal: ProposedViewSize, subviews: Subviews) -> LayoutResult {
+        let maxWidth = proposal.width ?? .infinity
+        var currentX: CGFloat = 0; var currentY: CGFloat = 0; var lineHeight: CGFloat = 0
+        var points: [CGPoint] = []
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX + size.width > maxWidth { currentX = 0; currentY += lineHeight + spacing; lineHeight = 0 }
+            points.append(CGPoint(x: currentX, y: currentY))
+            currentX += size.width + spacing; lineHeight = max(lineHeight, size.height)
+        }
+        return LayoutResult(size: CGSize(width: maxWidth, height: currentY + lineHeight), points: points)
+    }
 }
 
 #Preview {

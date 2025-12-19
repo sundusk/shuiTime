@@ -13,17 +13,19 @@ final class TimelineItem {
     var timestamp: Date
     var content: String
     var iconName: String
-    // 🔥 新增：类型区分 ("timeline" 或 "inspiration")
     var type: String
+    // 🔥 新增：是否为高亮/闪光点
+    var isHighlight: Bool
     
     @Attribute(.externalStorage) var imageData: Data?
     
-    init(content: String, iconName: String = "circle.fill", timestamp: Date = Date(), imageData: Data? = nil, type: String = "timeline") {
+    init(content: String, iconName: String = "circle.fill", timestamp: Date = Date(), imageData: Data? = nil, type: String = "timeline", isHighlight: Bool = false) {
         self.id = UUID()
         self.content = content
         self.iconName = iconName
         self.timestamp = timestamp
         self.imageData = imageData
         self.type = type
+        self.isHighlight = isHighlight
     }
 }

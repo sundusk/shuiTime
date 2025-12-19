@@ -16,10 +16,10 @@ struct InspirationInputView: View {
     // 接收要修改的条目
     var itemToEdit: TimelineItem?
     
-    // 🔥 新增：接收初始内容 (用于新建时预填标签)
+    // 接收初始内容
     var initialContent: String = ""
     
-    // 🔥 新增：指定创建时的类型 (默认为灵感，也可以是 "timeline")
+    // 指定创建时的类型
     var createType: String = "inspiration"
     
     // 输入状态
@@ -28,6 +28,9 @@ struct InspirationInputView: View {
     @State private var showKeyboard: Bool = false
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
+    
+    // 🔥 新增：闪光点状态
+    @State private var isHighlight: Bool = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -80,6 +83,13 @@ struct InspirationInputView: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showImagePicker = true }
                     }) { Image(systemName: "photo").font(.title3).foregroundColor(.primary) }
                     
+                    // 🔥 新增：闪光点开关按钮
+                    Button(action: { withAnimation { isHighlight.toggle() } }) {
+                        Image(systemName: isHighlight ? "star.fill" : "star")
+                            .font(.title3)
+                            .foregroundColor(isHighlight ? .orange : .primary)
+                    }
+                    
                     Button(action: { isBold.toggle() }) {
                         Image(systemName: "bold").font(.title3)
                             .foregroundColor(isBold ? .blue : .primary)
@@ -119,10 +129,10 @@ struct InspirationInputView: View {
         if let item = itemToEdit {
             // 修改模式：回填旧数据
             if let data = item.imageData { selectedImage = UIImage(data: data) }
+            // 🔥 回填高亮状态
+            isHighlight = item.isHighlight
             applyStyle(to: item.content)
         } else if !initialContent.isEmpty {
-            // 🔥 新建模式：如果有预填内容（如标签），填入并应用样式
-            // 自动在标签后加个空格，方便用户接着输入
             let textToFill = initialContent.hasSuffix(" ") ? initialContent : initialContent + " "
             applyStyle(to: textToFill)
         }
@@ -133,11 +143,9 @@ struct InspirationInputView: View {
         let attr = NSMutableAttributedString(string: content)
         let fullRange = NSRange(location: 0, length: attr.length)
         
-        // 1. 基础字体
         attr.addAttribute(.font, value: UIFont.systemFont(ofSize: 17), range: fullRange)
         attr.addAttribute(.foregroundColor, value: UIColor.label, range: fullRange)
         
-        // 2. 简单的标签高亮 (蓝色)
         let regexPattern = "#[^\\s]*"
         if let regex = try? NSRegularExpression(pattern: regexPattern, options: []) {
             let matches = regex.matches(in: content, options: [], range: fullRange)
@@ -178,8 +186,9 @@ struct InspirationInputView: View {
         if let existingItem = itemToEdit {
             existingItem.content = plainText
             existingItem.imageData = imageData
+            // 🔥 更新高亮状态
+            existingItem.isHighlight = isHighlight
         } else {
-            // 🔥 根据类型自动决定图标
             var icon = "lightbulb.fill"
             if createType == "timeline" {
                 icon = imageData != nil ? "photo" : "text.bubble"
@@ -190,7 +199,9 @@ struct InspirationInputView: View {
                 iconName: icon,
                 timestamp: Date(),
                 imageData: imageData,
-                type: createType // 🔥 使用传入的类型
+                type: createType,
+                // 🔥 保存高亮状态
+                isHighlight: isHighlight
             )
             modelContext.insert(newItem)
         }
