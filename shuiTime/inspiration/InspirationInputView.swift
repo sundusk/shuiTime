@@ -13,6 +13,9 @@ struct InspirationInputView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) private var modelContext
     
+    // 🔥 新增：接收要修改的条目 (如果是新建则为 nil)
+    var itemToEdit: TimelineItem?
+    
     // 输入状态
     @State private var attributedText = NSMutableAttributedString(string: "")
     @State private var isBold: Bool = false
@@ -46,7 +49,7 @@ struct InspirationInputView: View {
             }
             .padding(.horizontal)
             
-            Spacer() // 占据中间剩余空间
+            Spacer()
             
             // 3. 底部区域 (图片预览 + 工具栏)
             VStack(spacing: 0) {
@@ -85,12 +88,9 @@ struct InspirationInputView: View {
                             .foregroundColor(.primary)
                     }
                     
-                    // 🔥 修改点1：插入图片逻辑
+                    // 插入图片
                     Button(action: {
-                        // 1. 先收起键盘
                         showKeyboard = false
-                        
-                        // 2. 稍微延迟一点点弹出相册，让键盘有时间收下去
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             showImagePicker = true
                         }
@@ -119,7 +119,7 @@ struct InspirationInputView: View {
                     
                     Spacer()
                     
-                    // 发送按钮
+                    // 发送/保存按钮
                     Button(action: saveInspiration) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 20, weight: .bold))
@@ -135,15 +135,34 @@ struct InspirationInputView: View {
                 .background(Color(uiColor: .systemBackground))
             }
         }
+        // 🔥 初始化逻辑：如果是修改模式，回填数据
         .onAppear {
+            if let item = itemToEdit {
+                // 1. 回填图片
+                if let data = item.imageData {
+                    selectedImage = UIImage(data: data)
+                }
+                // 2. 回填文字并进行第一次染色 (让旧内容的标签也是蓝色的)
+                let initialAttr = NSMutableAttributedString(string: item.content)
+                initialAttr.addAttribute(.font, value: UIFont.systemFont(ofSize: 17), range: NSRange(location: 0, length: initialAttr.length))
+                initialAttr.addAttribute(.foregroundColor, value: UIColor.label, range: NSRange(location: 0, length: initialAttr.length))
+                
+                let regexPattern = "#[^\\s]*"
+                if let regex = try? NSRegularExpression(pattern: regexPattern, options: []) {
+                    let matches = regex.matches(in: initialAttr.string, options: [], range: NSRange(location: 0, length: initialAttr.length))
+                    for match in matches {
+                        initialAttr.addAttribute(.foregroundColor, value: UIColor.systemBlue, range: match.range)
+                    }
+                }
+                attributedText = initialAttr
+            }
+            
+            // 弹出键盘
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 showKeyboard = true
             }
         }
-        // 🔥 修改点2：监听 sheet 关闭，重新拉起键盘
         .sheet(isPresented: $showImagePicker, onDismiss: {
-            // 选完照片(或取消)回来，等待界面布局稳定(图片显示出来)后，再重新弹出键盘
-            // 这样键盘弹起时会自动计算新的剩余高度
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 showKeyboard = true
             }
@@ -177,19 +196,28 @@ struct InspirationInputView: View {
         showKeyboard = true
     }
     
-    // 保存逻辑
+    // 🔥 保存逻辑：区分新建和修改
     private func saveInspiration() {
         let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         let plainText = attributedText.string
         
-        let newItem = TimelineItem(
-            content: plainText,
-            iconName: "lightbulb.fill",
-            timestamp: Date(),
-            imageData: imageData,
-            type: "inspiration"
-        )
-        modelContext.insert(newItem)
+        if let existingItem = itemToEdit {
+            // --- 修改模式 ---
+            existingItem.content = plainText
+            existingItem.imageData = imageData
+            // SwiftData 对象是类的引用，直接修改属性即可，不需要再次 insert
+        } else {
+            // --- 新建模式 ---
+            let newItem = TimelineItem(
+                content: plainText,
+                iconName: "lightbulb.fill",
+                timestamp: Date(),
+                imageData: imageData,
+                type: "inspiration"
+            )
+            modelContext.insert(newItem)
+        }
+        
         try? modelContext.save()
         
         showKeyboard = false
@@ -197,7 +225,7 @@ struct InspirationInputView: View {
     }
 }
 
-// MARK: - 核心组件：支持富文本的输入框
+// MARK: - 核心组件：RichTextEditor (保持不变)
 struct RichTextEditor: UIViewRepresentable {
     @Binding var text: NSMutableAttributedString
     @Binding var isBold: Bool
@@ -210,28 +238,20 @@ struct RichTextEditor: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.isScrollEnabled = true
         textView.allowsEditingTextAttributes = true
-        
-        // 依然保留这个属性，作为双重保险
         textView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
-        
         return textView
     }
     
     func updateUIView(_ uiView: UITextView, context: Context) {
         context.coordinator.parent = self
         
-        // 键盘逻辑
         if showKeyboard {
             if !uiView.isFirstResponder {
-                DispatchQueue.main.async {
-                    uiView.becomeFirstResponder()
-                }
+                DispatchQueue.main.async { uiView.becomeFirstResponder() }
             }
         } else {
             if uiView.isFirstResponder {
-                DispatchQueue.main.async {
-                    uiView.resignFirstResponder()
-                }
+                DispatchQueue.main.async { uiView.resignFirstResponder() }
             }
         }
         
@@ -242,16 +262,12 @@ struct RichTextEditor: UIViewRepresentable {
         context.coordinator.updateTypingAttributes(textView: uiView)
     }
     
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
     
     class Coordinator: NSObject, UITextViewDelegate {
         var parent: RichTextEditor
         
-        init(_ parent: RichTextEditor) {
-            self.parent = parent
-        }
+        init(_ parent: RichTextEditor) { self.parent = parent }
         
         func updateTypingAttributes(textView: UITextView) {
             var attributes: [NSAttributedString.Key: Any] = [:]
@@ -295,7 +311,6 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             let textStorage = textView.textStorage
             let fullRange = NSRange(location: 0, length: textStorage.length)
-            
             let selectedRange = textView.selectedRange
             
             textStorage.removeAttribute(.foregroundColor, range: fullRange)
@@ -310,10 +325,8 @@ struct RichTextEditor: UIViewRepresentable {
             }
             
             textView.selectedRange = selectedRange
-            
             let copy = NSMutableAttributedString(attributedString: textStorage)
             parent.text = copy
-            
             updateTypingAttributes(textView: textView)
         }
         
