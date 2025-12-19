@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import PhotosUI
 
 // MARK: - 主视图
 struct TimeLineView: View {
@@ -17,69 +18,82 @@ struct TimeLineView: View {
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
     
-    // 这里直接使用公共组件 FullScreenImageView.swift 里定义的 FullScreenImage
+    // 控制新建输入的弹窗
+    @State private var showInputSheet: Bool = false
+    
+    // 全屏图片
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
-                // 背景层 - 点击收起键盘
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                    .onTapGesture {
-                        hideKeyboard()
+        ZStack(alignment: .bottomTrailing) { // 修改对齐方式，为了放置 FAB
+            
+            // 背景层
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+            
+            // 列表层
+            TimelineListView(date: selectedDate, onImageTap: { image in
+                fullScreenImage = FullScreenImage(image: image)
+            })
+            
+            // 🔥 新增：悬浮加号按钮 (仿 InspirationView 样式)
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: { showInputSheet = true }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 30, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: 56, height: 56)
+                            .background(Color.blue) // 时间线用蓝色主题
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: Color.blue.opacity(0.4), radius: 10, x: 0, y: 5)
                     }
-                
-                // 列表层 - 点击收起键盘
-                TimelineListView(date: selectedDate, onImageTap: { image in
-                    fullScreenImage = FullScreenImage(image: image)
-                })
-                .onTapGesture {
-                    hideKeyboard()
-                }
-                
-                // 仅在今天显示输入框
-                if Calendar.current.isDateInToday(selectedDate) {
-                    InputBarView()
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 30)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { withAnimation { showSideMenu = true } }) {
-                        Image(systemName: "line.3.horizontal").foregroundColor(.primary)
-                    }
-                }
-                ToolbarItem(placement: .principal) {
-                    Button(action: { showCalendar = true }) {
-                        HStack(spacing: 4) {
-                            Text(dateString(selectedDate))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Image(systemName: "chevron.down.circle.fill")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { withAnimation { selectedDate = Date() } }) {
-                        Text("今天").font(.subheadline)
-                    }
-                    .disabled(Calendar.current.isDateInToday(selectedDate))
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: { withAnimation { showSideMenu = true } }) {
+                    Image(systemName: "line.3.horizontal").foregroundColor(.primary)
                 }
             }
-            .sheet(isPresented: $showCalendar) {
-                VStack {
-                    DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .padding()
-                        .presentationDetents([.medium])
+            ToolbarItem(placement: .principal) {
+                Button(action: { showCalendar = true }) {
+                    HStack(spacing: 4) {
+                        Text(dateString(selectedDate))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.down.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
-            // 使用公共组件 FullScreenPhotoView
-            .fullScreenCover(item: $fullScreenImage) { wrapper in
-                FullScreenPhotoView(image: wrapper.image)
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { withAnimation { selectedDate = Date() } }) {
+                    Text("今天").font(.subheadline)
+                }
+                .disabled(Calendar.current.isDateInToday(selectedDate))
             }
+        }
+        .sheet(isPresented: $showCalendar) {
+            VStack {
+                DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .padding()
+                    .presentationDetents([.medium])
+            }
+        }
+        // 🔥 新增：输入弹窗
+        .sheet(isPresented: $showInputSheet) {
+            TimelineInputSheet()
+        }
+        .fullScreenCover(item: $fullScreenImage) { wrapper in
+            FullScreenPhotoView(image: wrapper.image)
         }
     }
     
@@ -91,7 +105,96 @@ struct TimeLineView: View {
     }
 }
 
-// MARK: - 列表视图
+// MARK: - 新增：TimelineInputSheet (用于替代 InputBarView)
+struct TimelineInputSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    
+    @State private var content: String = ""
+    @State private var selectedImage: UIImage? = nil
+    @State private var showImagePicker = false
+    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("内容")) {
+                    TextField("记录当下的想法...", text: $content, axis: .vertical)
+                        .lineLimit(3...8)
+                }
+                
+                Section(header: Text("图片")) {
+                    if let image = selectedImage {
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(height: 200)
+                                .frame(maxWidth: .infinity)
+                                .cornerRadius(8)
+                                .clipped()
+                                .listRowInsets(EdgeInsets())
+                            
+                            Button(action: {
+                                withAnimation { selectedImage = nil }
+                            }) {
+                                Image(systemName: "trash.circle.fill")
+                                    .font(.title)
+                                    .foregroundColor(.red)
+                                    .background(Circle().fill(.white))
+                            }
+                            .padding(8)
+                        }
+                    } else {
+                        Button(action: {
+                            sourceType = .photoLibrary
+                            showImagePicker = true
+                        }) {
+                            HStack {
+                                Image(systemName: "photo")
+                                Text("添加图片")
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("新记录")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        saveItem()
+                        dismiss()
+                    }
+                    .disabled(content.isEmpty && selectedImage == nil)
+                }
+            }
+            .sheet(isPresented: $showImagePicker) {
+                ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
+            }
+        }
+    }
+    
+    private func saveItem() {
+        let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
+        let icon = imageData != nil ? "photo" : "text.bubble"
+        
+        let newItem = TimelineItem(
+            content: content,
+            iconName: icon,
+            timestamp: Date(),
+            imageData: imageData,
+            type: "timeline"
+        )
+        modelContext.insert(newItem)
+        try? modelContext.save()
+    }
+}
+
+// MARK: - 列表视图 (保持基本不变，只删除了 showSideMenu 绑定)
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
@@ -108,7 +211,6 @@ struct TimelineListView: View {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
-        // 核心修改：增加条件 item.type == "timeline"
         _items = Query(
             filter: #Predicate<TimelineItem> { item in
                 item.timestamp >= startOfDay &&
@@ -165,7 +267,7 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 单行组件
+// MARK: - 单行组件 (保持不变)
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
@@ -211,79 +313,6 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 输入栏
-struct InputBarView: View {
-    @Environment(\.modelContext) private var modelContext
-    @State private var inputText: String = ""
-    @State private var selectedImage: UIImage? = nil
-    @State private var showImagePicker = false
-    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
-    @FocusState private var isInputFocused: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let image = selectedImage {
-                HStack(alignment: .top) {
-                    Image(uiImage: image).resizable().scaledToFill().frame(width: 80, height: 80)
-                        .cornerRadius(10).clipped()
-                        .overlay(
-                            Button(action: { withAnimation { selectedImage = nil } }) {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.white)
-                                    .background(Circle().fill(Color.black.opacity(0.5)))
-                            }
-                            .offset(x: 5, y: -5), alignment: .topTrailing
-                        )
-                    Spacer()
-                }
-                .padding(.horizontal)
-            }
-            
-            HStack(alignment: .bottom) {
-                TextField("现在在想什么? (记入时间轴)", text: $inputText, axis: .vertical)
-                    .focused($isInputFocused).padding(10)
-                    .background(Color(uiColor: .secondarySystemFill)).cornerRadius(15).lineLimit(1...4)
-                
-                Button(action: { sourceType = .photoLibrary; showImagePicker = true }) {
-                    Image(systemName: "photo").font(.title3).foregroundColor(.secondary).padding(.bottom, 8)
-                }
-                
-                if !inputText.isEmpty || selectedImage != nil {
-                    Button(action: saveItem) {
-                        Image(systemName: "paperplane.fill").font(.title3).foregroundColor(.blue).padding(.bottom, 8)
-                    }
-                }
-            }
-            .padding(.horizontal).padding(.bottom, 10)
-        }
-        .padding(.top, 10).background(.ultraThinMaterial).cornerRadius(25).padding()
-        .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
-        .sheet(isPresented: $showImagePicker) {
-            ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
-        }
-    }
-    
-    private func saveItem() {
-        guard !inputText.isEmpty || selectedImage != nil else { return }
-        let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
-        let icon = imageData != nil ? "photo" : "text.bubble"
-        
-        let newItem = TimelineItem(
-            content: inputText,
-            iconName: icon,
-            timestamp: Date(),
-            imageData: imageData,
-            type: "timeline"
-        )
-        modelContext.insert(newItem)
-        try? modelContext.save()
-        withAnimation {
-            inputText = ""
-            selectedImage = nil
-            isInputFocused = false
-        }
-    }
-}
-
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
@@ -294,15 +323,6 @@ struct EmptyStateView: View {
         .offset(y: -40)
     }
 }
-
-// MARK: - 扩展：隐藏键盘
-#if canImport(UIKit)
-extension View {
-    func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-}
-#endif
 
 #Preview {
     TimeLineView(showSideMenu: .constant(false))

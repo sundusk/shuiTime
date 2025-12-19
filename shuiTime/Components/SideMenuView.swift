@@ -8,17 +8,26 @@
 import SwiftUI
 import SwiftData
 
+// 定义导航选项
+enum SideMenuOption {
+    case inspiration
+    case lookBack
+}
+
 struct SideMenuView: View {
     @Binding var isOpen: Bool
     
-    // ✅ 修复报错：接收今天是否有内容的状态
+    // 接收今天是否有内容的状态
     var hasContentToday: Bool
     
-    // ✅ 新增功能：控制是否显示标签区域
+    // 是否显示标签区域 (旧逻辑保留，但新版主要靠导航跳转)
     var showTags: Bool
     
-    // 点击标签的回调闭包
+    // 点击标签的回调
     var onTagSelected: ((String) -> Void)?
+    
+    // 🔥 新增：点击菜单项的回调
+    var onMenuSelected: ((SideMenuOption) -> Void)?
     
     // 获取数据库所有数据
     @Query private var allItems: [TimelineItem]
@@ -122,14 +131,21 @@ struct SideMenuView: View {
                             }
                         }
                         Spacer()
-                        HStack(spacing: 20) {
-                            Image(systemName: "bell")
-                            Image(systemName: "hexagon")
-                        }
-                        .foregroundColor(.gray)
-                        .font(.system(size: 20))
                     }
-                    .padding(.top, 60).padding(.horizontal, 24).padding(.bottom, 30)
+                    .padding(.top, 60).padding(.horizontal, 24).padding(.bottom, 20)
+                    
+                    // --- 🔥 导航菜单区域 ---
+                    VStack(spacing: 8) {
+                        MenuButton(title: "灵感集", icon: "lightbulb.fill", color: .yellow) {
+                            onMenuSelected?(.inspiration)
+                        }
+                        
+                        MenuButton(title: "时光回顾", icon: "clock.arrow.circlepath", color: .purple) {
+                            onMenuSelected?(.lookBack)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
                     
                     // --- 统计数据 ---
                     HStack {
@@ -174,65 +190,9 @@ struct SideMenuView: View {
                         .padding(.horizontal, 24)
                         .padding(.bottom, 20)
                     
-                    // --- 🔥 全部标签区域 (仅在 showTags 为 true 时显示) ---
-                    if showTags {
-                        VStack(alignment: .leading, spacing: 12) {
-                            // 标题栏
-                            HStack {
-                                Text("全部标签")
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                                Spacer()
-                                Image(systemName: "slider.horizontal.3")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            if allTags.isEmpty {
-                                Text("暂无标签").font(.caption).foregroundColor(.gray)
-                                    .padding(.top, 10)
-                            } else {
-                                ScrollView(.vertical, showsIndicators: false) {
-                                    VStack(spacing: 0) {
-                                        ForEach(allTags, id: \.self) { tag in
-                                            Button(action: {
-                                                // 🔥 触发跳转回调
-                                                onTagSelected?(tag)
-                                            }) {
-                                                HStack {
-                                                    // 左侧 # 号
-                                                    Text("#")
-                                                        .font(.system(size: 22, weight: .bold))
-                                                        .foregroundColor(.secondary.opacity(0.7))
-                                                    
-                                                    // 标签文字
-                                                    Text(tag.replacingOccurrences(of: "#", with: ""))
-                                                        .font(.system(size: 16, weight: .medium))
-                                                        .foregroundColor(.primary)
-                                                    
-                                                    Spacer()
-                                                    
-                                                    // 右侧 ... 图标
-                                                    Image(systemName: "ellipsis")
-                                                        .font(.system(size: 14))
-                                                        .foregroundColor(.gray)
-                                                }
-                                                .padding(.vertical, 8)
-                                                .contentShape(Rectangle()) // 确保点击区域铺满整行
-                                            }
-                                        }
-                                    }
-                                    .padding(.bottom, 20)
-                                }
-                                .frame(maxHeight: 220) // 限制高度
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                    }
-                    
                     Spacer()
                     
-                    Text("v1.0.1").font(.caption).foregroundColor(.gray.opacity(0.5)).padding()
+                    Text("v1.1.0").font(.caption).foregroundColor(.gray.opacity(0.5)).padding()
                 }
                 .frame(width: 300)
                 .background(Color(uiColor: .systemBackground))
@@ -246,6 +206,40 @@ struct SideMenuView: View {
 }
 
 // MARK: - 辅助组件
+
+struct MenuButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(color)
+                    .frame(width: 30)
+                
+                Text(title)
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.gray.opacity(0.5))
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
+            .cornerRadius(10)
+        }
+    }
+}
+
 struct HeatMapCell: View {
     let day: SideMenuView.HeatMapDay
     var body: some View {

@@ -9,10 +9,13 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @State private var selectedTab: Int = 0
+    // 导航路径管理
+    @State private var path = NavigationPath()
+    
+    // 侧边栏状态
     @State private var showSideMenu: Bool = false
     
-    // 🔥 新增：用于控制灵感集页面的标签跳转状态
+    // 灵感集页面选中的标签（用于传递状态）
     @State private var inspirationSelectedTag: String? = nil
     
     // 获取所有数据，用于检查状态
@@ -21,58 +24,46 @@ struct ContentView: View {
     // 计算属性：检查今天是否有数据
     var hasTodayContent: Bool {
         let calendar = Calendar.current
-        // 遍历所有 items，只要有一个 item 的日期是今天，就返回 true
         return items.contains { item in
             calendar.isDateInToday(item.timestamp)
         }
     }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            
-            TabView(selection: $selectedTab) {
-                // TimeLineView (Tab 0)
+        NavigationStack(path: $path) {
+            ZStack(alignment: .leading) {
+                
+                // 1. 主页面：时间线 (作为首页)
                 TimeLineView(showSideMenu: $showSideMenu)
-                    .tabItem {
-                        Label("时间线", systemImage: "calendar.day.timeline.left")
+                    .navigationDestination(for: SideMenuOption.self) { option in
+                        switch option {
+                        case .inspiration:
+                            // 跳转到灵感集
+                            InspirationView(selectedTag: $inspirationSelectedTag)
+                        case .lookBack:
+                            // 跳转到时光回顾
+                            LookBackView()
+                        }
                     }
-                    .tag(0)
-
-                // InspirationView (Tab 1)
-                // 🔥 修改点：将标签选中状态传给子视图
-                InspirationView(
-                    showSideMenu: $showSideMenu,
-                    selectedTag: $inspirationSelectedTag
+                
+                // 2. 侧滑栏 (覆盖在最上层)
+                SideMenuView(
+                    isOpen: $showSideMenu,
+                    hasContentToday: hasTodayContent,
+                    showTags: false, // 首页侧边栏暂不显示标签列表，避免太杂
+                    onTagSelected: { _ in },
+                    onMenuSelected: { option in
+                        // 关闭侧边栏
+                        withAnimation {
+                            showSideMenu = false
+                        }
+                        // 延迟一点点跳转，让动画更顺畅
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            path.append(option)
+                        }
+                    }
                 )
-                    .tabItem {
-                        Label("灵感集", systemImage: "lightbulb")
-                    }
-                    .tag(1)
-
-                // LookBackView (Tab 2)
-                LookBackView() // ✅ 新代码：不需要传参数了
-                    .tabItem {
-                        Label("时光回顾", systemImage: "clock.arrow.circlepath")
-                    }
-                    .tag(2)
             }
-            .tint(.blue)
-            
-            // 侧滑栏 (覆盖在最上层)
-            SideMenuView(
-                isOpen: $showSideMenu,
-                hasContentToday: hasTodayContent, // 传递今日是否有内容的状态
-                showTags: selectedTab == 1,       // 🔥 只有在灵感集页面才显示标签列表
-                onTagSelected: { tag in
-                    // 🔥 处理点击：
-                    // 1. 设置灵感集页面的选中标签
-                    inspirationSelectedTag = tag
-                    // 2. 关闭侧边栏，用户就能看到跳转后的界面了
-                    withAnimation {
-                        showSideMenu = false
-                    }
-                }
-            )
         }
     }
 }

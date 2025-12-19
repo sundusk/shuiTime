@@ -9,7 +9,8 @@ import SwiftUI
 import SwiftData
 
 struct InspirationView: View {
-    @Binding var showSideMenu: Bool
+    // 🔥 修改：不再需要 showSideMenu
+    
     @Environment(\.modelContext) private var modelContext
     
     @Query(filter: #Predicate<TimelineItem> { $0.type == "inspiration" }, sort: \TimelineItem.timestamp, order: .reverse)
@@ -29,123 +30,113 @@ struct InspirationView: View {
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .topLeading) {
-                // 背景色使用系统分组背景（浅色是灰，深色是纯黑），这行不用改，效果是对的
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                
-                if items.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "lightbulb.min")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray.opacity(0.3))
-                        Text("点击右下角记录灵感")
-                            .foregroundColor(.gray)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(items) { item in
-                                InspirationCardView(
-                                    item: item,
-                                    onMenuTap: { selectedItem, anchorPoint in
-                                        self.itemForMenu = selectedItem
-                                        self.menuPosition = anchorPoint
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                            self.showCustomMenu = true
-                                        }
-                                    },
-                                    onTagTap: { tag in
-                                        self.selectedTag = tag
-                                    },
-                                    onImageTap: { image in
-                                        self.fullScreenImage = FullScreenImage(image: image)
+        ZStack(alignment: .topLeading) {
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+            
+            if items.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "lightbulb.min")
+                        .font(.system(size: 50))
+                        .foregroundColor(.gray.opacity(0.3))
+                    Text("点击右下角记录灵感")
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(items) { item in
+                            InspirationCardView(
+                                item: item,
+                                onMenuTap: { selectedItem, anchorPoint in
+                                    self.itemForMenu = selectedItem
+                                    self.menuPosition = anchorPoint
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        self.showCustomMenu = true
                                     }
-                                )
-                            }
+                                },
+                                onTagTap: { tag in
+                                    self.selectedTag = tag
+                                },
+                                onImageTap: { image in
+                                    self.fullScreenImage = FullScreenImage(image: image)
+                                }
+                            )
                         }
-                        .padding()
-                        .padding(.bottom, 80)
                     }
-                    .coordinateSpace(name: "InspirationScrollSpace")
+                    .padding()
+                    .padding(.bottom, 80)
                 }
-                
-                // 悬浮加号按钮
-                VStack {
+                .coordinateSpace(name: "InspirationScrollSpace")
+            }
+            
+            // 悬浮加号按钮
+            VStack {
+                Spacer()
+                HStack {
                     Spacer()
-                    HStack {
-                        Spacer()
-                        Button(action: { showNewInputSheet = true }) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 30, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.green) // 绿色在深色模式也很显眼，保留即可
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .shadow(color: Color.green.opacity(0.4), radius: 10, x: 0, y: 5)
-                        }
-                        .padding(.trailing, 24)
-                        .padding(.bottom, 30)
+                    Button(action: { showNewInputSheet = true }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 30, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: 56, height: 56)
+                            .background(Color.green)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: Color.green.opacity(0.4), radius: 10, x: 0, y: 5)
                     }
-                }
-                
-                // 浮层菜单
-                if showCustomMenu {
-                    Color.black.opacity(0.01).ignoresSafeArea().onTapGesture { withAnimation { showCustomMenu = false } }
-                    VStack(spacing: 0) {
-                        Button(action: {
-                            showCustomMenu = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { itemToEdit = itemForMenu }
-                        }) {
-                            HStack { Image(systemName: "pencil"); Text("修改"); Spacer() }
-                                .padding().foregroundColor(.primary)
-                        }
-                        Divider()
-                        Button(action: {
-                            showCustomMenu = false
-                            if let item = itemForMenu {
-                                itemToDelete = item
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showDeleteAlert = true }
-                            }
-                        }) {
-                            HStack { Image(systemName: "trash"); Text("删除"); Spacer() }
-                                .padding().foregroundColor(.red)
-                        }
-                    }
-                    // 🔥 菜单背景也优化一下，适应深色模式
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                    .cornerRadius(12).frame(width: 140)
-                    .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
-                    .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
-                    .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 30)
                 }
             }
-            .navigationTitle("灵感集")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { withAnimation { showSideMenu = true } }) {
-                        Image(systemName: "line.3.horizontal").foregroundColor(.primary)
+            
+            // 浮层菜单
+            if showCustomMenu {
+                Color.black.opacity(0.01).ignoresSafeArea().onTapGesture { withAnimation { showCustomMenu = false } }
+                VStack(spacing: 0) {
+                    Button(action: {
+                        showCustomMenu = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { itemToEdit = itemForMenu }
+                    }) {
+                        HStack { Image(systemName: "pencil"); Text("修改"); Spacer() }
+                            .padding().foregroundColor(.primary)
+                    }
+                    Divider()
+                    Button(action: {
+                        showCustomMenu = false
+                        if let item = itemForMenu {
+                            itemToDelete = item
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showDeleteAlert = true }
+                        }
+                    }) {
+                        HStack { Image(systemName: "trash"); Text("删除"); Spacer() }
+                            .padding().foregroundColor(.red)
                     }
                 }
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .cornerRadius(12).frame(width: 140)
+                .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+                .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
+                .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
             }
-            .fullScreenCover(item: $fullScreenImage) { wrapper in
-                FullScreenPhotoView(image: wrapper.image)
-            }
-            .navigationDestination(item: $selectedTag) { tag in
-                TagFilterView(tagName: tag)
-            }
-            .sheet(isPresented: $showNewInputSheet) {
-                InspirationInputView(itemToEdit: nil)
-            }
-            .sheet(item: $itemToEdit) { item in
-                InspirationInputView(itemToEdit: item)
-            }
-            .alert("确认删除?", isPresented: $showDeleteAlert) {
-                Button("取消", role: .cancel) { itemToDelete = nil }
-                Button("删除", role: .destructive) { if let item = itemToDelete { deleteItem(item) } }
-            } message: { Text("删除后将无法恢复。") }
         }
+        .navigationTitle("灵感集")
+        // 🔥 移除了 .toolbar 中的 SideMenu 按钮
+        .fullScreenCover(item: $fullScreenImage) { wrapper in
+            FullScreenPhotoView(image: wrapper.image)
+        }
+        .navigationDestination(item: $selectedTag) { tag in
+            TagFilterView(tagName: tag)
+        }
+        .sheet(isPresented: $showNewInputSheet) {
+            InspirationInputView(itemToEdit: nil)
+        }
+        .sheet(item: $itemToEdit) { item in
+            InspirationInputView(itemToEdit: item)
+        }
+        .alert("确认删除?", isPresented: $showDeleteAlert) {
+            Button("取消", role: .cancel) { itemToDelete = nil }
+            Button("删除", role: .destructive) { if let item = itemToDelete { deleteItem(item) } }
+        } message: { Text("删除后将无法恢复。") }
     }
     
     private func deleteItem(_ item: TimelineItem) {
@@ -154,7 +145,7 @@ struct InspirationView: View {
     }
 }
 
-// MARK: - 灵感卡片视图 (UI 优化版)
+// MARK: - 灵感卡片视图 (保持不变)
 struct InspirationCardView: View {
     let item: TimelineItem
     var onMenuTap: (TimelineItem, CGPoint) -> Void
@@ -169,7 +160,7 @@ struct InspirationCardView: View {
             HStack {
                 Text(item.timestamp.formatted(date: .numeric, time: .standard))
                     .font(.caption)
-                    .foregroundColor(.secondary) // 深色背景下，secondary 会自动变亮，现在能看清了
+                    .foregroundColor(.secondary)
                 Spacer()
                 Button(action: {
                     let anchor = CGPoint(x: buttonFrame.maxX, y: buttonFrame.maxY)
@@ -221,11 +212,8 @@ struct InspirationCardView: View {
             }
         }
         .padding(16)
-        // 🔥 核心修改：使用语义化颜色
-        // .secondarySystemGroupedBackground：浅色模式=白色，深色模式=深灰色
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(16)
-        // 🔥 优化阴影：在深色模式下稍微减弱阴影，避免太脏
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     

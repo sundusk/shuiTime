@@ -21,43 +21,42 @@ struct LookBackView: View {
     @State private var currentMonth: Date = Date()
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
-                        
-                        // 1. 顶部统计卡片 (本月概览)
-                        StatsHeaderView(items: itemsInMonth(date: currentMonth))
-                            .padding(.top, 10)
-                        
-                        // 2. 自定义日历视图
-                        CalendarCardView(
-                            currentMonth: $currentMonth,
-                            selectedDate: $selectedDate,
-                            recordedDates: getRecordedDates()
-                        )
-                        
-                        // 3. 选中日期的详细回顾 (UI 优化：区分过去与未来)
-                        DayReviewSection(date: selectedDate, items: itemsInDay(date: selectedDate))
-                            .padding(.bottom, 40)
-                    }
-                    .padding(.horizontal)
+        // 🔥 移除了 NavigationStack，由 ContentView 提供
+        ZStack {
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+            
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    
+                    // 1. 顶部统计卡片 (本月概览)
+                    StatsHeaderView(items: itemsInMonth(date: currentMonth))
+                        .padding(.top, 10)
+                    
+                    // 2. 自定义日历视图
+                    CalendarCardView(
+                        currentMonth: $currentMonth,
+                        selectedDate: $selectedDate,
+                        recordedDates: getRecordedDates()
+                    )
+                    
+                    // 3. 选中日期的详细回顾 (UI 优化：区分过去与未来)
+                    DayReviewSection(date: selectedDate, items: itemsInDay(date: selectedDate))
+                        .padding(.bottom, 40)
                 }
+                .padding(.horizontal)
             }
-            .navigationTitle("时光回顾")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: {
-                        withAnimation {
-                            selectedDate = Date()
-                            currentMonth = Date()
-                        }
-                    }) {
-                        Text("回今天").font(.caption).bold()
+        }
+        .navigationTitle("时光回顾")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: {
+                    withAnimation {
+                        selectedDate = Date()
+                        currentMonth = Date()
                     }
+                }) {
+                    Text("回今天").font(.caption).bold()
                 }
             }
         }
@@ -254,7 +253,7 @@ struct DayCell: View {
     }
 }
 
-// MARK: - 3. 选中日期详情组件 (🔥 修改重点)
+// MARK: - 3. 选中日期详情组件
 struct DayReviewSection: View {
     let date: Date
     let items: [TimelineItem]
