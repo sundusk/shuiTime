@@ -8,85 +8,189 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - 1. 新增：全屏图片的数据包装器
+struct FullScreenImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+// MARK: - 2. 新增：全屏图片查看视图
+struct FullScreenPhotoView: View {
+    let image: UIImage
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        ZStack {
+            // 黑色背景
+            Color.black.ignoresSafeArea()
+            
+            // 图片
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .draggableAndZoomable() // 可选：如果你想支持缩放，可以搜一下 SwiftUI Zoomable Image，这里先做基础展示
+            
+            // 关闭按钮
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white.opacity(0.8))
+                            .padding()
+                    }
+                }
+                Spacer()
+            }
+        }
+        // 点击背景也能关闭
+        .onTapGesture {
+            dismiss()
+        }
+    }
+}
+
+// MARK: - 3. 主视图
 struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var showSideMenu: Bool
     
-    @Query(sort: \TimelineItem.timestamp, order: .reverse)
-    private var items: [TimelineItem]
+    // 日期状态
+    @State private var selectedDate: Date = Date()
+    @State private var showCalendar: Bool = false
     
-    // MARK: - 新增状态管理
-    // 用来标记当前正在修改哪个 item
-    @State private var itemToEdit: TimelineItem?
-    // 用来标记当前准备删除哪个 item
-    @State private var itemToDelete: TimelineItem?
-    // 控制删除确认弹窗
-    @State private var showDeleteAlert = false
+    // 🔥 新增：控制全屏图片的状态
+    @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 
-                if items.isEmpty {
-                    EmptyStateView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            Spacer().frame(height: 20)
-                            
-                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                                TimelineRowView(
-                                    item: item,
-                                    isLast: index == items.count - 1
-                                )
-                                // 🔥 核心：在这里添加长按菜单
-                                .contextMenu {
-                                    // 1. 修改按钮
-                                    Button {
-                                        itemToEdit = item // 触发 sheet
-                                    } label: {
-                                        Label("修改", systemImage: "pencil")
-                                    }
-                                    
-                                    // 2. 删除按钮 (红色)
-                                    Button(role: .destructive) {
-                                        itemToDelete = item // 记录要删谁
-                                        showDeleteAlert = true // 触发弹窗
-                                    } label: {
-                                        Label("删除", systemImage: "trash")
-                                    }
-                                }
-                            }
-                            
-                            Spacer().frame(height: 100)
-                        }
-                        .padding(.horizontal)
-                    }
-                    .scrollClipDisabled(false)
-                }
+                // 将点击回调传入 TimelineListView
+                TimelineListView(date: selectedDate, onImageTap: { image in
+                    // 触发全屏显示
+                    fullScreenImage = FullScreenImage(image: image)
+                })
                 
                 InputBarView()
             }
-            .navigationTitle(currentDateString())
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: { withAnimation { showSideMenu = true } }) {
                         Image(systemName: "line.3.horizontal").foregroundColor(.primary)
                     }
                 }
+                
+                ToolbarItem(placement: .principal) {
+                    Button(action: { showCalendar = true }) {
+                        HStack(spacing: 4) {
+                            Text(dateString(selectedDate))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Image(systemName: "chevron.down.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: "moon.stars").foregroundColor(.secondary)
+                    Button(action: { withAnimation { selectedDate = Date() } }) {
+                        Text("今天").font(.subheadline)
+                    }
+                    .disabled(Calendar.current.isDateInToday(selectedDate))
                 }
             }
-            // MARK: - 弹窗逻辑
-            // 1. 编辑弹窗
+            .sheet(isPresented: $showCalendar) {
+                VStack {
+                    DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        .presentationDetents([.medium])
+                }
+            }
+            // 🔥 新增：全屏图片覆盖层
+            .fullScreenCover(item: $fullScreenImage) { wrapper in
+                FullScreenPhotoView(image: wrapper.image)
+            }
+        }
+    }
+    
+    func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "YYYY年MM月dd日"
+        if Calendar.current.isDateInToday(date) {
+            return "今日"
+        }
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - 4. 列表视图
+struct TimelineListView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var items: [TimelineItem]
+    
+    // 状态管理
+    @State private var itemToEdit: TimelineItem?
+    @State private var itemToDelete: TimelineItem?
+    @State private var showDeleteAlert = false
+    
+    // 🔥 新增：接收点击回调
+    var onImageTap: (UIImage) -> Void
+    
+    init(date: Date, onImageTap: @escaping (UIImage) -> Void) {
+        self.onImageTap = onImageTap
+        
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        _items = Query(
+            filter: #Predicate<TimelineItem> { item in
+                item.timestamp >= startOfDay && item.timestamp < endOfDay
+            },
+            sort: \.timestamp,
+            order: .reverse
+        )
+    }
+    
+    var body: some View {
+        if items.isEmpty {
+            EmptyStateView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.bottom, 80)
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    Spacer().frame(height: 20)
+                    
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        TimelineRowView(
+                            item: item,
+                            isLast: index == items.count - 1,
+                            onImageTap: onImageTap // 传递回调
+                        )
+                        .contextMenu {
+                            Button { itemToEdit = item } label: { Label("修改", systemImage: "pencil") }
+                            Button(role: .destructive) {
+                                itemToDelete = item
+                                showDeleteAlert = true
+                            } label: { Label("删除", systemImage: "trash") }
+                        }
+                    }
+                    
+                    Spacer().frame(height: 100)
+                }
+                .padding(.horizontal)
+            }
+            .scrollClipDisabled(false)
             .sheet(item: $itemToEdit) { item in
                 EditTimelineView(item: item)
             }
-            // 2. 删除确认弹窗
             .alert("确认删除?", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) { itemToDelete = nil }
                 Button("删除", role: .destructive) {
@@ -100,7 +204,6 @@ struct TimeLineView: View {
         }
     }
     
-    // 删除逻辑
     private func deleteItem(_ item: TimelineItem) {
         withAnimation {
             modelContext.delete(item)
@@ -108,21 +211,18 @@ struct TimeLineView: View {
         }
         itemToDelete = nil
     }
-    
-    func currentDateString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "YYYY年MM月dd日"
-        return "今日, " + formatter.string(from: Date())
-    }
 }
 
-// MARK: - 单行时间轴 (保持不变，只是被上面调用时加了 contextMenu)
+// MARK: - 5. 单行组件
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
+    // 🔥 新增：回调闭包
+    var onImageTap: ((UIImage) -> Void)?
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // 时间轴线
             VStack(spacing: 0) {
                 Rectangle()
                     .fill(Color.blue.opacity(0.3))
@@ -142,6 +242,7 @@ struct TimelineRowView: View {
             }
             .frame(width: 20)
             
+            // 内容区域
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.timestamp.formatted(date: .omitted, time: .shortened))
                     .font(.caption)
@@ -149,6 +250,7 @@ struct TimelineRowView: View {
                     .padding(.top, 10)
                 
                 VStack(alignment: .leading, spacing: 8) {
+                    // 图片展示
                     if let data = item.imageData, let uiImage = UIImage(data: data) {
                         Image(uiImage: uiImage)
                             .resizable()
@@ -157,7 +259,12 @@ struct TimelineRowView: View {
                             .frame(maxWidth: .infinity)
                             .cornerRadius(8)
                             .clipped()
+                            // 🔥 新增：点击手势
+                            .onTapGesture {
+                                onImageTap?(uiImage)
+                            }
                     }
+                    // 文字展示
                     if !item.content.isEmpty {
                         HStack(alignment: .top) {
                             Image(systemName: item.iconName)
@@ -173,7 +280,6 @@ struct TimelineRowView: View {
                 .background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                // 增加一个透明背景来增大长按热区，防止点不到
                 .contentShape(Rectangle())
                 .padding(.bottom, 20)
             }
@@ -182,7 +288,7 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 底部输入栏 (保持不变)
+// MARK: - 6. 输入栏 (保持不变)
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var inputText: String = ""
@@ -259,6 +365,8 @@ struct InputBarView: View {
         guard !inputText.isEmpty || selectedImage != nil else { return }
         let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         let icon = imageData != nil ? "photo" : "text.bubble"
+        
+        // 记录时间永远是“现在”
         let newItem = TimelineItem(
             content: inputText,
             iconName: icon,
@@ -275,20 +383,30 @@ struct InputBarView: View {
     }
 }
 
+// MARK: - 7. 空状态视图
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "calendar.badge.clock")
                 .font(.system(size: 80))
                 .foregroundColor(.gray.opacity(0.3))
-            Text("今日无时间线")
+            Text("这一天没有记录")
                 .font(.title2)
                 .foregroundColor(.gray)
-            Text("点击下方记录当下的美好瞬间")
+            Text("时间流淌，静水流深")
                 .font(.footnote)
                 .foregroundColor(.gray.opacity(0.6))
         }
-        .offset(y: -100)
+        .offset(y: -40)
+    }
+}
+
+// MARK: - 扩展：辅助动画
+extension View {
+    // 这里放置一个空的 ViewModifier 占位，
+    // 如果你后面需要做复杂的图片缩放逻辑，可以在这里扩展
+    func draggableAndZoomable() -> some View {
+        self // 暂时直接返回自身
     }
 }
 
