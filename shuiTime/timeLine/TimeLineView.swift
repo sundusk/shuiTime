@@ -18,19 +18,67 @@ struct TimeLineView: View {
     @State private var showCalendar: Bool = false
     @State private var fullScreenImage: FullScreenImage?
     
+    // 控制输入框展开
+    @State private var isInputExpanded: Bool = false
+    
+    // 拖拽偏移量
+    @State private var ballOffset: CGSize = .zero
+    
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
+            ZStack {
+                // 1. 背景层
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                    .onTapGesture { hideKeyboard() }
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isInputExpanded = false
+                            hideKeyboard()
+                        }
+                    }
                 
+                // 2. 列表层
                 TimelineListView(date: selectedDate, onImageTap: { image in
                     fullScreenImage = FullScreenImage(image: image)
                 })
-                .onTapGesture { hideKeyboard() }
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isInputExpanded = false
+                        hideKeyboard()
+                    }
+                }
                 
-                if Calendar.current.isDateInToday(selectedDate) {
-                    InputBarView()
+                // 3. 输入栏层 (Expanded Input Bar)
+                if isInputExpanded {
+                    VStack {
+                        Spacer()
+                        InputBarView(isExpanded: $isInputExpanded)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    .background(
+                        Color.black.opacity(0.2)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation { isInputExpanded = false; hideKeyboard() }
+                            }
+                    )
+                    .zIndex(200)
+                }
+            }
+            // 4. 🔥 悬浮球 (钉在最上层)
+            .overlay(alignment: .bottomTrailing) {
+                if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) {
+                    FloatingBallView(
+                        offset: $ballOffset,
+                        onTap: {
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                isInputExpanded = true
+                            }
+                        }
+                    )
+                    .padding(.bottom, 100) // 默认位置：避开底部 TabBar
+                    .padding(.trailing, 20)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -77,7 +125,61 @@ struct TimeLineView: View {
     }
 }
 
-// MARK: - 列表视图
+// MARK: - 🔥 纯净版悬浮球 (FloatingBallView)
+struct FloatingBallView: View {
+    @Binding var offset: CGSize
+    var onTap: () -> Void
+    
+    @GestureState private var dragOffset: CGSize = .zero
+    
+    var body: some View {
+        Button(action: onTap) {
+            // 纯粹的渐变球体
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color.blue,               // 核心：深蓝 (Inner)
+                            Color.cyan.opacity(0.8)   // 边缘：浅蓝/青色 (Outer)
+                        ]),
+                        center: .center,
+                        startRadius: 5,
+                        endRadius: 30
+                    )
+                )
+                .frame(width: 56, height: 56)
+                // 增加一点高光边框，增加立体感
+                .overlay(
+                    Circle()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.5), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                // 柔和的投影
+                .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
+        }
+        .offset(x: offset.width + dragOffset.width, y: offset.height + dragOffset.height)
+        .gesture(
+            DragGesture()
+                .updating($dragOffset) { value, state, _ in
+                    state = value.translation
+                }
+                .onEnded { value in
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        offset.width += value.translation.width
+                        offset.height += value.translation.height
+                    }
+                }
+        )
+    }
+}
+
+// MARK: - 列表视图 (TimelineListView - 保持不变)
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
@@ -132,7 +234,7 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 单行组件 (TimelineRowView)
+// MARK: - 单行组件 (TimelineRowView - 保持不变)
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
@@ -142,18 +244,15 @@ struct TimelineRowView: View {
         item.type == "inspiration"
     }
     
-    // 🔥 修改点 1：只有灵感模式下才解析标签
     private var tags: [String] {
-        guard isInspiration else { return [] } // 非灵感模式，不提取标签
+        guard isInspiration else { return [] }
         return item.content.split(separator: " ")
             .map { String($0) }
             .filter { $0.hasPrefix("#") && $0.count > 1 }
     }
     
-    // 🔥 修改点 2：只有灵感模式下才清洗正文
     private var cleanContent: String {
-        guard isInspiration else { return item.content } // 非灵感模式，原样返回
-        
+        guard isInspiration else { return item.content }
         let pattern = "#[^\\s]+"
         let range = NSRange(location: 0, length: item.content.utf16.count)
         let regex = try? NSRegularExpression(pattern: pattern)
@@ -163,7 +262,6 @@ struct TimelineRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // 左侧时间轴
             VStack(spacing: 0) {
                 Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
                 Circle()
@@ -177,13 +275,10 @@ struct TimelineRowView: View {
             .frame(width: 20)
             
             VStack(alignment: .leading, spacing: 6) {
-                // 时间戳
                 Text(item.timestamp.formatted(date: .omitted, time: .shortened))
                     .font(.caption).foregroundColor(.secondary).padding(.top, 10)
                 
-                // 内容气泡
                 VStack(alignment: .leading, spacing: 8) {
-                    // 图片区域
                     if let data = item.imageData, let uiImage = UIImage(data: data) {
                         Image(uiImage: uiImage)
                             .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
@@ -191,22 +286,13 @@ struct TimelineRowView: View {
                             .onTapGesture { onImageTap?(uiImage) }
                     }
                     
-                    // 文字区域
                     if !cleanContent.isEmpty {
-                        Text(cleanContent)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                            .lineLimit(nil)
+                        Text(cleanContent).font(.body).foregroundColor(.primary).lineLimit(nil)
                     }
                     
-                    // 页脚信息
                     if !tags.isEmpty || isInspiration {
-                        if (!cleanContent.isEmpty || item.imageData != nil) {
-                            Divider().opacity(0.3)
-                        }
-                        
+                        if (!cleanContent.isEmpty || item.imageData != nil) { Divider().opacity(0.3) }
                         HStack(spacing: 8) {
-                            // 灵感标识
                             if isInspiration {
                                 HStack(spacing: 4) {
                                     Image(systemName: "lightbulb.fill").font(.caption2).foregroundColor(.yellow)
@@ -215,12 +301,8 @@ struct TimelineRowView: View {
                                 .padding(.vertical, 2).padding(.horizontal, 6)
                                 .background(Color.yellow.opacity(0.1)).cornerRadius(4)
                             }
-                            
-                            // 标签列表
                             ForEach(tags, id: \.self) { tag in
-                                Text(tag)
-                                    .font(.caption2)
-                                    .foregroundColor(.blue)
+                                Text(tag).font(.caption2).foregroundColor(.blue)
                                     .padding(.vertical, 2).padding(.horizontal, 6)
                                     .background(Color.blue.opacity(0.05)).cornerRadius(4)
                             }
@@ -244,9 +326,10 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 输入栏 (InputBarView)
+// MARK: - 输入栏 (展开后逻辑 - 保持不变)
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
+    @Binding var isExpanded: Bool
     
     @State private var inputText: String = ""
     @State private var selectedImage: UIImage? = nil
@@ -273,8 +356,7 @@ struct InputBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            
-            // 🔥 修改点 3：只有在灵感模式 (isInspirationMode) 下才显示标签建议
+            // 标签联想栏
             if isInputFocused && isInspirationMode && !recentTags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -294,7 +376,6 @@ struct InputBarView: View {
             
             // 主输入区域
             VStack(alignment: .leading, spacing: 0) {
-                // 图片预览区
                 if let image = selectedImage {
                     HStack {
                         Image(uiImage: image).resizable().scaledToFill()
@@ -308,15 +389,10 @@ struct InputBarView: View {
                             )
                         Spacer()
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 4)
+                    .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
                 }
                 
-                // 工具栏 + 输入框
                 HStack(alignment: .bottom, spacing: 12) {
-                    
-                    // 左侧工具组
                     HStack(spacing: 8) {
                         Button(action: {
                             let generator = UIImpactFeedbackGenerator(style: .medium); generator.impactOccurred()
@@ -337,7 +413,6 @@ struct InputBarView: View {
                     }
                     .padding(.bottom, 6)
                     
-                    // 中间输入框
                     TextField(isInspirationMode ? "捕捉灵感..." : "记录此刻...", text: $inputText, axis: .vertical)
                         .focused($isInputFocused)
                         .padding(10)
@@ -349,7 +424,7 @@ struct InputBarView: View {
                                 .stroke(isInspirationMode ? Color.yellow.opacity(0.5) : Color.clear, lineWidth: 1)
                         )
                     
-                    // 右侧发送按钮
+                    // 按钮组
                     if !inputText.isEmpty || selectedImage != nil {
                         Button(action: saveItem) {
                             Image(systemName: "arrow.up.circle.fill")
@@ -359,14 +434,33 @@ struct InputBarView: View {
                         }
                         .padding(.bottom, 2)
                         .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isExpanded = false
+                                isInputFocused = false
+                            }
+                        }) {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .frame(width: 32, height: 32)
+                                .background(Color.secondary.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .padding(.bottom, 6)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 16).padding(.vertical, 10)
             }
             .background(.ultraThinMaterial)
             .cornerRadius(25, corners: [.topLeft, .topRight])
             .shadow(color: Color.black.opacity(0.1), radius: 10, y: -5)
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isInputFocused = true
+            }
         }
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
@@ -392,11 +486,12 @@ struct InputBarView: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
         
-        withAnimation {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             inputText = ""
             selectedImage = nil
             isInputFocused = false
             isInspirationMode = false
+            isExpanded = false
         }
     }
 }
