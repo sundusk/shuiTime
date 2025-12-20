@@ -12,7 +12,7 @@ import UIKit
 // MARK: - 主视图
 struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
-    @Binding var showSideMenu: Bool
+    // 🔥 已移除 showSideMenu Binding
     
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
@@ -64,7 +64,7 @@ struct TimeLineView: View {
                     .zIndex(200)
                 }
             }
-            // 4. 🔥 悬浮球 (钉在最上层)
+            // 4. 悬浮球
             .overlay(alignment: .bottomTrailing) {
                 if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) {
                     FloatingBallView(
@@ -77,17 +77,14 @@ struct TimeLineView: View {
                             }
                         }
                     )
-                    .padding(.bottom, 100) // 默认位置：避开底部 TabBar
+                    .padding(.bottom, 100)
                     .padding(.trailing, 20)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { withAnimation { showSideMenu = true } }) {
-                        Image(systemName: "line.3.horizontal").foregroundColor(.primary)
-                    }
-                }
+                // 🔥 左上角菜单按钮已删除
+                
                 ToolbarItem(placement: .principal) {
                     Button(action: { showCalendar = true }) {
                         HStack(spacing: 4) {

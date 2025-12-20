@@ -10,70 +10,36 @@ import SwiftData
 
 struct ContentView: View {
     @State private var selectedTab: Int = 0
-    @State private var showSideMenu: Bool = false
     
-    // 🔥 新增：用于控制灵感集页面的标签跳转状态
-    @State private var inspirationSelectedTag: String? = nil
-    
-    // 获取所有数据，用于检查状态
+    // 获取所有数据 (如果后续红点提示需要，可以保留，否则也可以删掉)
     @Query private var items: [TimelineItem]
 
-    // 计算属性：检查今天是否有数据
-    var hasTodayContent: Bool {
-        let calendar = Calendar.current
-        // 遍历所有 items，只要有一个 item 的日期是今天，就返回 true
-        return items.contains { item in
-            calendar.isDateInToday(item.timestamp)
-        }
-    }
-
     var body: some View {
-        ZStack(alignment: .leading) {
+        // 🔥 移除 ZStack 和 SideMenu，直接返回 TabView
+        TabView(selection: $selectedTab) {
             
-            TabView(selection: $selectedTab) {
-                // TimeLineView (Tab 0)
-                TimeLineView(showSideMenu: $showSideMenu)
-                    .tabItem {
-                        Label("时间线", systemImage: "calendar.day.timeline.left")
-                    }
-                    .tag(0)
-
-                // InspirationView (Tab 1)
-                // 🔥 修改点：将标签选中状态传给子视图
-                InspirationView(
-                    showSideMenu: $showSideMenu,
-                    selectedTag: $inspirationSelectedTag
-                )
-                    .tabItem {
-                        Label("灵感集", systemImage: "lightbulb")
-                    }
-                    .tag(1)
-
-                // LookBackView (Tab 2)
-                LookBackView() // ✅ 新代码：不需要传参数了
-                    .tabItem {
-                        Label("时光回顾", systemImage: "clock.arrow.circlepath")
-                    }
-                    .tag(2)
-            }
-            .tint(.blue)
-            
-            // 侧滑栏 (覆盖在最上层)
-            SideMenuView(
-                isOpen: $showSideMenu,
-                hasContentToday: hasTodayContent, // 传递今日是否有内容的状态
-                showTags: selectedTab == 1,       // 🔥 只有在灵感集页面才显示标签列表
-                onTagSelected: { tag in
-                    // 🔥 处理点击：
-                    // 1. 设置灵感集页面的选中标签
-                    inspirationSelectedTag = tag
-                    // 2. 关闭侧边栏，用户就能看到跳转后的界面了
-                    withAnimation {
-                        showSideMenu = false
-                    }
+            // 1. 时间线
+            TimeLineView() // 不需要传 showSideMenu 了
+                .tabItem {
+                    Label("时间线", systemImage: "calendar.day.timeline.left")
                 }
-            )
+                .tag(0)
+
+            // 2. 灵感集
+            InspirationView() // 不需要传参了，内部自己管理状态
+                .tabItem {
+                    Label("灵感集", systemImage: "lightbulb")
+                }
+                .tag(1)
+
+            // 3. 时光回顾
+            LookBackView()
+                .tabItem {
+                    Label("时光回顾", systemImage: "clock.arrow.circlepath")
+                }
+                .tag(2)
         }
+        .tint(.blue)
     }
 }
 

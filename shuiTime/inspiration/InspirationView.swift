@@ -9,7 +9,8 @@ import SwiftUI
 import SwiftData
 
 struct InspirationView: View {
-    @Binding var showSideMenu: Bool
+    // 🔥 移除 showSideMenu Binding
+    
     @Environment(\.modelContext) private var modelContext
     
     @Query(filter: #Predicate<TimelineItem> { $0.type == "inspiration" }, sort: \TimelineItem.timestamp, order: .reverse)
@@ -23,15 +24,14 @@ struct InspirationView: View {
     @State private var menuPosition: CGPoint = .zero
     @State private var itemForMenu: TimelineItem?
     
-    // 由父视图(ContentView)控制跳转
-    @Binding var selectedTag: String?
+    // 🔥 修改：改为 @State，由内部管理跳转 (不再依赖 ContentView/SideMenu)
+    @State private var selectedTag: String?
     
     @State private var fullScreenImage: FullScreenImage?
     
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
-                // 背景色使用系统分组背景（浅色是灰，深色是纯黑），这行不用改，效果是对的
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 
                 if items.isEmpty {
@@ -81,7 +81,7 @@ struct InspirationView: View {
                                 .font(.system(size: 30, weight: .medium))
                                 .foregroundColor(.white)
                                 .frame(width: 56, height: 56)
-                                .background(Color.green) // 绿色在深色模式也很显眼，保留即可
+                                .background(Color.green)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                                 .shadow(color: Color.green.opacity(0.4), radius: 10, x: 0, y: 5)
                         }
@@ -113,7 +113,6 @@ struct InspirationView: View {
                                 .padding().foregroundColor(.red)
                         }
                     }
-                    // 🔥 菜单背景也优化一下，适应深色模式
                     .background(Color(uiColor: .secondarySystemGroupedBackground))
                     .cornerRadius(12).frame(width: 140)
                     .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
@@ -123,11 +122,8 @@ struct InspirationView: View {
             }
             .navigationTitle("灵感集")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { withAnimation { showSideMenu = true } }) {
-                        Image(systemName: "line.3.horizontal").foregroundColor(.primary)
-                    }
-                }
+                // 🔥 左上角菜单按钮已删除
+                // 预留位置：在这里可以加一个"筛选"按钮 (Step 2)
             }
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
