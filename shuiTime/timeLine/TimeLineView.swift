@@ -74,7 +74,7 @@ struct TimeLineView: View {
                     .zIndex(300)
                 }
             }
-            // 5. 增强版悬浮球 (带长按菜单 + 呼吸效果)
+            // 5. 增强版悬浮球 (带长按菜单 + 呼吸效果 + 🔥绿色新皮肤)
             .overlay(alignment: .bottomTrailing) {
                 if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) && !showReplaceSheet {
                     FloatingBallMenu(
@@ -208,7 +208,7 @@ struct TimeLineView: View {
     }
 }
 
-// MARK: - 增强版悬浮球 (逻辑重构：手势状态机 + 纯净外观 + 呼吸效果)
+// MARK: - 增强版悬浮球 (逻辑重构 + 🔥绿色新皮肤)
 struct FloatingBallMenu: View {
     @Binding var offset: CGSize
     @Binding var isExpanded: Bool
@@ -221,7 +221,7 @@ struct FloatingBallMenu: View {
     // 内部状态
     @State private var dragStartOffset: CGSize = .zero // 拖拽开始时的小球位置
     @State private var activeSelection: Int? = nil // 0: None, 1: Camera, 2: Photo
-    @State private var isBreathing = false // 🔥 呼吸动画状态
+    @State private var isBreathing = false // 呼吸动画状态
     
     // 布局常量 (相对于球心的偏移)
     private let cameraOffset = CGSize(width: -60, height: -70)
@@ -232,12 +232,12 @@ struct FloatingBallMenu: View {
         ZStack {
             // 1. 径向菜单项 (展开时显示)
             if isExpanded {
-                // 相机气泡
+                // 相机气泡 (保持蓝色，代表生成蓝色的瞬影)
                 MenuBubble(icon: "camera.fill", color: .blue, label: "拍摄", isHighlighted: activeSelection == 1)
                     .offset(cameraOffset)
                     .transition(.scale.combined(with: .opacity))
                 
-                // 相册气泡
+                // 相册气泡 (保持绿色，代表资源库)
                 MenuBubble(icon: "photo.on.rectangle", color: .green, label: "相册", isHighlighted: activeSelection == 2)
                     .offset(photoOffset)
                     .transition(.scale.combined(with: .opacity))
@@ -245,10 +245,10 @@ struct FloatingBallMenu: View {
             
             // 2. 主球体
             ZStack {
-                // 🔥 新增：呼吸光晕层 (仅在收起状态下显示)
+                // 🔥 新增：呼吸光晕层 (改为绿色)
                 if !isExpanded {
                     Circle()
-                        .fill(Color.blue)
+                        .fill(Color.green) // 🔥 绿色呼吸
                         .frame(width: 56, height: 56)
                         .scaleEffect(isBreathing ? 1.3 : 1.0) // 缩放范围 1.0 -> 1.3
                         .opacity(isBreathing ? 0.0 : 0.3)     // 透明度范围 0.3 -> 0.0 (消散)
@@ -258,9 +258,10 @@ struct FloatingBallMenu: View {
                 Circle()
                     .fill(
                         RadialGradient(
+                            // 🔥 核心修改：改为绿色系渐变
                             gradient: Gradient(colors: [
-                                Color.blue,               // 核心：深蓝 (Inner)
-                                Color.cyan.opacity(0.8)   // 边缘：浅蓝/青色 (Outer)
+                                Color.green,              // 核心：鲜绿
+                                Color.mint.opacity(0.8)   // 边缘：薄荷绿 (带一点青色，过渡自然)
                             ]),
                             center: .center,
                             startRadius: 5,
@@ -280,8 +281,8 @@ struct FloatingBallMenu: View {
                                 lineWidth: 1
                             )
                     )
-                    // 柔和的投影
-                    .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
+                    // 柔和的投影 (改为绿色阴影)
+                    .shadow(color: Color.green.opacity(0.4), radius: 8, x: 0, y: 5) // 🔥 绿色阴影
             }
             .scaleEffect(isExpanded ? 0.9 : 1.0) // 展开时轻微缩小，增加锁定感
         }
@@ -554,13 +555,11 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 单行组件 (TimelineRowView - 无呼吸灯，仅精致边框)
+// MARK: - 单行组件 (TimelineRowView - 无呼吸灯，仅精致边框 - 保持蓝色)
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
     var onImageTap: ((UIImage) -> Void)?
-    
-    // 🔥 已移除呼吸状态变量 @State private var isBreathing = false
     
     // 判断类型
     private var isMoment: Bool { item.type == "moment" }
@@ -597,7 +596,6 @@ struct TimelineRowView: View {
                         Circle().stroke(Color.blue, lineWidth: 1.5).frame(width: 18, height: 18)
                         Circle().fill(Color.blue).frame(width: 8, height: 8)
                     }
-                    // 🔥 已移除 scaleEffect
                 } else {
                     Circle()
                         .fill(isInspiration ? Color.yellow : Color.blue)
@@ -656,7 +654,6 @@ struct TimelineRowView: View {
                                     .padding(8)
                                     .shadow(radius: 2)
                             }
-                            // 🔥 已移除 onAppear 和动画
                     }
                     // (B) 普通样式 (无变化)
                     else {
@@ -705,7 +702,7 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 输入栏 (InputBarView)
+// MARK: - 输入栏 (InputBarView - 保持不变)
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var isExpanded: Bool
