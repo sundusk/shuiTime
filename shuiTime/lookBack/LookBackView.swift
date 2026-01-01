@@ -146,20 +146,23 @@ struct LookBackView: View {
 }
 
 // MARK: - 🔥 新增：流动的蓝色弥散背景组件
+// MARK: - 🔥 修复：流动的蓝色弥散背景组件（已适配深色模式）
 struct MeshGradientBackground: View {
     @State private var animate = false
+    @Environment(\.colorScheme) var colorScheme // 获取当前颜色模式
     
     var body: some View {
         ZStack {
-            // 1. 基底色：不再是纯灰，而是极淡的冷调白
-            Color(red: 0.96, green: 0.97, blue: 0.99).ignoresSafeArea()
+            // 1. 基底色：使用系统自适应背景色
+            // Light: 浅灰白 / Dark: 纯黑或深灰
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
             
             // 2. 弥散光球组
             GeometryReader { geo in
                 ZStack {
                     // 左上：深邃蓝
                     Circle()
-                        .fill(Color.blue.opacity(0.08))
+                        .fill(Color.blue.opacity(colorScheme == .dark ? 0.2 : 0.08)) // 深色模式下稍微加深透明度
                         .frame(width: geo.size.width * 0.8)
                         .blur(radius: 60)
                         .offset(x: -geo.size.width * 0.2, y: -geo.size.height * 0.1)
@@ -167,7 +170,7 @@ struct MeshGradientBackground: View {
                     
                     // 右中：清透青
                     Circle()
-                        .fill(Color.cyan.opacity(0.06))
+                        .fill(Color.cyan.opacity(colorScheme == .dark ? 0.15 : 0.06))
                         .frame(width: geo.size.width * 0.6)
                         .blur(radius: 50)
                         .offset(x: geo.size.width * 0.3, y: geo.size.height * 0.2)
@@ -175,7 +178,7 @@ struct MeshGradientBackground: View {
                     
                     // 左下：极淡紫 (增加层次)
                     Circle()
-                        .fill(Color.indigo.opacity(0.05))
+                        .fill(Color.indigo.opacity(colorScheme == .dark ? 0.15 : 0.05))
                         .frame(width: geo.size.width * 0.7)
                         .blur(radius: 70)
                         .offset(x: -geo.size.width * 0.1, y: geo.size.height * 0.4)
@@ -194,11 +197,11 @@ struct MeshGradientBackground: View {
 }
 
 
-// MARK: - 🔥 升级：时光封面卡片组件
-// MARK: - 时光封面卡片组件 (优化引导版)
+// MARK: - 时光封面卡片组件 (优化引导版 - 已适配深色模式)
 struct TimeCoverCard: View {
     let momentItem: TimelineItem?
     let month: Date
+    @Environment(\.colorScheme) var colorScheme // 获取当前颜色模式
     
     var monthString: String {
         let formatter = DateFormatter()
@@ -217,12 +220,12 @@ struct TimeCoverCard: View {
         ZStack {
             // --- 装饰层 1 (最底层) ---
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(red: 0.98, green: 0.98, blue: 0.96))
-                .frame(height: 250) // 稍微加高一点以容纳副标题空间
+                // 🔥 适配：使用自适应背景色
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                .frame(height: 250)
                 .shadow(color: .black.opacity(0.05), radius: 4, x: -2, y: 2)
                 .rotationEffect(.degrees(-6))
                 .offset(x: -12, y: 8)
-                .padding(.horizontal, 20)
                 .opacity(0.8)
             
             // --- 装饰层 2 (中间层) ---
@@ -239,7 +242,7 @@ struct TimeCoverCard: View {
                 if let item = momentItem, let data = item.imageData, let uiImage = UIImage(data: data) {
                     // --- 有照片的状态 ---
                     HStack(spacing: 0) {
-                        SprocketColumn()
+                        SprocketColumn() // 胶卷齿孔
                         
                         Image(uiImage: uiImage)
                             .resizable()
@@ -255,6 +258,7 @@ struct TimeCoverCard: View {
                         
                         SprocketColumn()
                     }
+                    // 胶卷背景保持深色（模拟胶卷）
                     .background(Color.black.opacity(0.9))
                     
                     // 底部区域
@@ -262,7 +266,8 @@ struct TimeCoverCard: View {
                         HStack(alignment: .lastTextBaseline) {
                             Text(monthString)
                                 .font(.system(size: 22, weight: .heavy, design: .monospaced))
-                                .foregroundColor(.black.opacity(0.8))
+                                // 🔥 适配：改为 primary，深色模式下变白
+                                .foregroundColor(.primary)
                             
                             Spacer()
                             
@@ -271,20 +276,21 @@ struct TimeCoverCard: View {
                                 .foregroundColor(.gray.opacity(0.6))
                         }
                         
-                        // 🔥 新增：非常细、间距较大的中文副标题
+                        // 中文副标题
                         Text("— 点击进入瞬影长廊 —")
                             .font(.caption2)
                             .fontWeight(.light)
-                            .kerning(4) // 增加字间距
+                            .kerning(4)
                             .foregroundColor(.secondary.opacity(0.7))
                             .padding(.top, 2)
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
-                    .background(Color.white)
+                    // 🔥 适配：改为自适应背景
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
                     
                 } else {
-                    // --- 空状态保持不变 ---
+                    // --- 空状态 ---
                     VStack(spacing: 8) {
                         Image(systemName: "camera.shutter.button")
                             .font(.system(size: 40))
@@ -293,6 +299,7 @@ struct TimeCoverCard: View {
                     }
                     .frame(height: 250)
                     .frame(maxWidth: .infinity)
+                    // 🔥 适配：使用自适应背景
                     .background(Color(uiColor: .secondarySystemGroupedBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -302,7 +309,8 @@ struct TimeCoverCard: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+            // 深色模式下阴影稍微加重一点点，或者保持不变
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 8, x: 0, y: 4)
             .rotationEffect(.degrees(2))
         }
         .padding(.vertical, 10)
