@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 
-// 🔥 1. 定义一个简单的数据包装器，用于控制 sheet 弹窗
+// 数据包装器，用于控制 sheet 弹窗
 struct LastYearDataWrapper: Identifiable {
     let id = UUID()
     let items: [TimelineItem]
@@ -29,8 +29,7 @@ struct LookBackView: View {
     // 全屏图片状态
     @State private var fullScreenImage: FullScreenImage?
     
-    // 🔥 2. 修改：使用可选对象来控制弹窗，而不是 Bool
-    // 当它不为 nil 时，弹窗自动显示；为 nil 时隐藏。
+    // sheet 弹窗控制
     @State private var lastYearSheetData: LastYearDataWrapper?
     
     var body: some View {
@@ -39,11 +38,17 @@ struct LookBackView: View {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) { // 稍微增加间距
                         
-                        // 1. 顶部统计
-                        StatsHeaderView(items: itemsInMonth(date: currentMonth))
-                            .padding(.top, 10)
+                        // 🔥 1. 新增：时光封面卡片 (替换了原本的统计卡片)
+                        NavigationLink(destination: MomentGalleryView()) {
+                                                    TimeCoverCard(
+                                                        momentItem: latestMomentInMonth(date: currentMonth),
+                                                        month: currentMonth
+                                                    )
+                                                }
+                                                .buttonStyle(PlainButtonStyle()) // 去掉默认的按钮点击置灰效果，保持卡片原样
+                                                .padding(.top, 10)
                         
                         // 2. 热力图
                         HeatMapCard(items: allItems)
@@ -53,8 +58,6 @@ struct LookBackView: View {
                             LastYearCapsuleCard(
                                 items: lastYearItems,
                                 onTap: {
-                                    // 🔥 3. 触发：直接把数据塞给这个对象，Sheet 就会自动弹出
-                                    // 这样保证了 Sheet 打开时一定有数据
                                     self.lastYearSheetData = LastYearDataWrapper(items: lastYearItems)
                                 }
                             )
@@ -97,7 +100,6 @@ struct LookBackView: View {
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
-            // 🔥 4. 修改：使用 item 形式的 sheet
             .sheet(item: $lastYearSheetData) { wrapper in
                 LastYearDetailView(items: wrapper.items, onImageTap: { image in
                     fullScreenImage = FullScreenImage(image: image)
@@ -108,16 +110,24 @@ struct LookBackView: View {
     
     // MARK: - 数据处理辅助函数
     
+    // 获取本月最新的一张瞬影
+    private func latestMomentInMonth(date: Date) -> TimelineItem? {
+        let calendar = Calendar.current
+        return allItems
+            .filter {
+                calendar.isDate($0.timestamp, equalTo: date, toGranularity: .month) &&
+                $0.type == "moment" && // 必须是瞬影
+                $0.imageData != nil    // 必须有图
+            }
+            .sorted { $0.timestamp > $1.timestamp } // 按时间倒序
+            .first
+    }
+    
     private func getRecordedDates() -> Set<String> {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dates = allItems.map { formatter.string(from: $0.timestamp) }
         return Set(dates)
-    }
-    
-    private func itemsInMonth(date: Date) -> [TimelineItem] {
-        let calendar = Calendar.current
-        return allItems.filter { calendar.isDate($0.timestamp, equalTo: date, toGranularity: .month) }
     }
     
     private func itemsInDay(date: Date) -> [TimelineItem] {
@@ -133,7 +143,125 @@ struct LookBackView: View {
     }
 }
 
-// MARK: - 热力图卡片
+// MARK: - 🔥 新增：时光封面卡片组件
+struct TimeCoverCard: View {
+    let momentItem: TimelineItem?
+    let month: Date
+    
+    var monthString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM" // 例如: January
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter.string(from: month).uppercased()
+    }
+    
+    var yearString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy"
+        return formatter.string(from: month)
+    }
+    
+    var body: some View {
+        ZStack {
+            // 1. 底层叠放装饰 (模拟堆叠感)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(uiColor: .systemBackground))
+                .frame(height: 240)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
+                .rotationEffect(.degrees(-4)) // 向左歪一点
+                .padding(.horizontal, 20)
+                .opacity(0.6)
+            
+            // 2. 主封面卡片
+            VStack(spacing: 0) {
+                if let item = momentItem, let data = item.imageData, let uiImage = UIImage(data: data) {
+                    // --- 有照片的状态 ---
+                    HStack(spacing: 0) {
+                        // 左侧齿孔
+                        SprocketColumn()
+                        
+                        // 照片区域
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 180) // 固定高度
+                            .clipped()
+                            // 🔥 核心需求：2px 蓝色细边框
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.blue, lineWidth: 2)
+                            )
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 8)
+                        
+                        // 右侧齿孔
+                        SprocketColumn()
+                    }
+                    .background(Color.black.opacity(0.9)) // 胶片底色
+                    
+                    // 底部月份信息
+                    HStack {
+                        Text(monthString)
+                            .font(.system(size: 24, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.black.opacity(0.8))
+                        Spacer()
+                        Text(yearString)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    
+                } else {
+                    // --- 空状态 (本月无瞬影) ---
+                    // 🔥 修正点：去掉了错误的 mainAxisAlignment 参数
+                    // 使用 spacing 来控制垂直间距，效果更好
+                    VStack(spacing: 8) {
+                        Image(systemName: "camera.shutter.button")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.3))
+                        
+                        Text("本月暂无瞬影")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .frame(height: 240)
+                    .frame(maxWidth: .infinity) // 这里的 frame 会自动让 VStack 居中显示
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(style: StrokeStyle(lineWidth: 2, dash: [5]))
+                            .foregroundColor(.gray.opacity(0.2))
+                    )
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            // 卡片整体阴影
+            .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+            // 🔥 核心需求：随机旋转角度 (3度)
+            .rotationEffect(.degrees(2))
+        }
+        .padding(.vertical, 10)
+    }
+}
+
+// 胶卷齿孔装饰组件
+struct SprocketColumn: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(0..<8) { _ in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 8, height: 12)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - 热力图卡片 (保持不变)
 struct HeatMapCard: View {
     let items: [TimelineItem]
     
@@ -231,46 +359,7 @@ struct HeatMapCard: View {
     }
 }
 
-// MARK: - 1. 顶部统计组件
-struct StatsHeaderView: View {
-    let items: [TimelineItem]
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            StatCard(title: "本月记录", value: "\(items.count)", unit: "条", icon: "doc.text.fill", color: .blue)
-            StatCard(title: "灵感捕捉", value: "\(items.filter { $0.type == "inspiration" }.count)", unit: "个", icon: "lightbulb.fill", color: .yellow)
-            StatCard(title: "影像瞬间", value: "\(items.filter { $0.imageData != nil }.count)", unit: "张", icon: "photo.fill", color: .purple)
-        }
-    }
-}
-
-struct StatCard: View {
-    let title: String, value: String, unit: String, icon: String, color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon).foregroundColor(color)
-                Spacer()
-            }
-            .font(.caption)
-            
-            HStack(alignment: .lastTextBaseline, spacing: 2) {
-                Text(value).font(.title2).bold().foregroundColor(.primary)
-                Text(unit).font(.caption2).foregroundColor(.secondary)
-            }
-            
-            Text(title).font(.caption2).foregroundColor(.gray)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-    }
-}
-
-// MARK: - 2. 日历卡片组件
+// MARK: - 日历卡片组件 (保持不变)
 struct CalendarCardView: View {
     @Binding var currentMonth: Date
     @Binding var selectedDate: Date
@@ -372,7 +461,7 @@ struct DayCell: View {
     }
 }
 
-// MARK: - 3. 选中日期详情组件
+// MARK: - 选中日期详情组件 (保持不变)
 struct DayReviewSection: View {
     let date: Date
     let items: [TimelineItem]
@@ -430,7 +519,7 @@ struct DayReviewSection: View {
     }
 }
 
-// MARK: - 列表行组件 (公共)
+// 列表行组件
 struct CompactTimelineRow: View {
     let item: TimelineItem
     var onImageTap: ((UIImage) -> Void)?
