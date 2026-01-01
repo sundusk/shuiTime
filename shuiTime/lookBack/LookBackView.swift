@@ -324,9 +324,12 @@ struct SprocketColumn: View {
     }
 }
 
-// MARK: - 热力图卡片 (保持不变)
+// MARK: - 增强交互版热力图卡片
 struct HeatMapCard: View {
     let items: [TimelineItem]
+    
+    // 🔥 新增：选中的热力图日期
+    @State private var selectedHeatMapDate: Date? = nil
     
     struct HeatMapDay: Identifiable {
         let id = UUID()
@@ -370,21 +373,43 @@ struct HeatMapCard: View {
                 .font(.headline)
                 .padding(.horizontal, 4)
             
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(heatMapData.indices, id: \.self) { weekIndex in
-                        let week = heatMapData[weekIndex]
-                        VStack(spacing: 4) {
-                            ForEach(week) { day in
-                                HeatMapCell(day: day)
+            HStack {
+                Spacer(minLength: 0)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(heatMapData.indices, id: \.self) { weekIndex in
+                            let week = heatMapData[weekIndex]
+                            VStack(spacing: 4) {
+                                ForEach(week) { day in
+                                    // 🔥 修改：传入选中状态和点击事件
+                                    HeatMapCell(
+                                        day: day,
+                                        isSelected: Calendar.current.isDate(day.date, inSameDayAs: selectedHeatMapDate ?? Date.distantPast),
+                                        onTap: {
+                                            withAnimation(.spring(response: 0.3)) {
+                                                if let current = selectedHeatMapDate, Calendar.current.isDate(current, inSameDayAs: day.date) {
+                                                    selectedHeatMapDate = nil // 再次点击取消选中
+                                                } else {
+                                                    selectedHeatMapDate = day.date
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 4)
+                .fixedSize(horizontal: true, vertical: false)
+                
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity)
             
             HStack {
+                // 左侧图例
                 Text("Less").font(.caption2).foregroundColor(.secondary)
                 HStack(spacing: 3) {
                     RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.1)).frame(width: 10, height: 10)
@@ -392,33 +417,73 @@ struct HeatMapCard: View {
                     RoundedRectangle(cornerRadius: 2).fill(Color.green).frame(width: 10, height: 10)
                 }
                 Text("More").font(.caption2).foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // 🔥 蓝色标记区域：显示选中的日期
+                if let date = selectedHeatMapDate {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                        Text(formatDate(date))
+                    }
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
+                    .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+                }
             }
             .padding(.top, 4)
             .padding(.horizontal, 4)
         }
         .padding(16)
-        // 🔥 适配新背景：轻微降低卡片透明度，让背景色隐约透出
         .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.9))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
+    // 日期格式化
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日"
+        return formatter.string(from: date)
+    }
+    
     struct HeatMapCell: View {
         let day: HeatMapDay
+        let isSelected: Bool // 新增：选中状态
+        let onTap: () -> Void // 新增：点击回调
+        
         var body: some View {
-            var color: Color {
+            let color: Color = {
                 if day.count == 0 { return Color.secondary.opacity(0.1) }
                 if day.count <= 2 { return Color.green.opacity(0.4) }
                 return Color.green
-            }
+            }()
+            
             return ZStack {
-                RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 14, height: 14)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color)
+                    .frame(width: 14, height: 14)
+                
+                // 今日标记
                 if day.isToday {
                     RoundedRectangle(cornerRadius: 2)
                         .stroke(Color.primary.opacity(0.6), lineWidth: 1.5)
                         .frame(width: 14, height: 14)
                 }
+                
+                // 🔥 选中后的视觉反馈 (蓝色外边框)
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.blue, lineWidth: 2)
+                        .frame(width: 18, height: 18)
+                }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onTap() } // 触发点击
         }
     }
 }
