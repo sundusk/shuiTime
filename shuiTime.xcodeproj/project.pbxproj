@@ -10,9 +10,22 @@
 		C293AB682EE8529100A49965 /* shuiTime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = shuiTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C21CBA492EF7C6C8006D5EE8 /* Exceptions for "shuiTime" folder in "shuiTime" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C293AB672EE8529100A49965 /* shuiTime */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C293AB6A2EE8529100A49965 /* shuiTime */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C21CBA492EF7C6C8006D5EE8 /* Exceptions for "shuiTime" folder in "shuiTime" target */,
+			);
 			path = shuiTime;
 			sourceTree = "<group>";
 		};
@@ -256,6 +269,7 @@
 				DEVELOPMENT_TEAM = HCPQ4JRW53;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = shuiTime/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "水时间";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -289,6 +303,7 @@
 				DEVELOPMENT_TEAM = HCPQ4JRW53;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = shuiTime/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "水时间";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

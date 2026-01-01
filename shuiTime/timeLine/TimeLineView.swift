@@ -111,9 +111,29 @@ struct TimeLineView: View {
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
+            // 🔥 新增：监听 App 回到前台，自动更新日期
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                checkAndUpdateDate()
+            }
+                        // 🔥 新增：监听凌晨 0 点日历变更，自动更新日期
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+                checkAndUpdateDate()
+            }
         }
     }
-    
+    // 🔥 新增：日期检查逻辑
+        private func checkAndUpdateDate() {
+            // 如果当前选中的日期不是“今天”（说明可能是昨天的日期了），则自动跳转回今天
+            // 这里的逻辑可以根据需求调整：如果你希望用户在查看历史记录时不被打断，可以加一个判断（例如只在 selectedDate 是昨天时才跳转）
+            if !Calendar.current.isDateInToday(selectedDate) {
+                // 只有当显示的不是今天时，才刷新。
+                // 如果你的需求是“只要回来就必须是今天”，直接赋值即可。
+                // 这里我们假设：如果用户停留在昨天（变成了今天的前一天），我们需要把它拉回今天。
+                withAnimation {
+                    selectedDate = Date()
+                }
+            }
+        }
     func dateString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY年MM月dd日"
