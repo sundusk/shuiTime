@@ -8,46 +8,43 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import PhotosUI
 
 // MARK: - 主视图
 struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
-    // 🔥 已移除 showSideMenu Binding
     
+    // 日期与状态管理
     @State private var selectedDate: Date = Date()
     @State private var showCalendar: Bool = false
     @State private var fullScreenImage: FullScreenImage?
-    
-    // 控制输入框展开
     @State private var isInputExpanded: Bool = false
-    
-    // 拖拽偏移量
     @State private var ballOffset: CGSize = .zero
+    
+    // 🔥 瞬影功能状态
+    @State private var showCamera = false
+    @State private var showPhotoLibrary = false
+    @State private var tempImage: UIImage? // 暂存拍摄/选择的图片
+    @State private var showReplaceSheet = false // 替换弹窗
+    @State private var isFabExpanded = false // 悬浮球菜单展开状态
+    
+    // 获取今日数据用于计算额度
+    @Query private var allItems: [TimelineItem]
     
     var body: some View {
         NavigationStack {
             ZStack {
                 // 1. 背景层
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isInputExpanded = false
-                            hideKeyboard()
-                        }
-                    }
+                    .onTapGesture { resetStates() }
                 
                 // 2. 列表层
                 TimelineListView(date: selectedDate, onImageTap: { image in
                     fullScreenImage = FullScreenImage(image: image)
                 })
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isInputExpanded = false
-                        hideKeyboard()
-                    }
-                }
+                .onTapGesture { resetStates() }
                 
-                // 3. 输入栏层 (Expanded Input Bar)
+                // 3. 普通输入栏 (底部弹出)
                 if isInputExpanded {
                     VStack {
                         Spacer()
@@ -57,25 +54,42 @@ struct TimeLineView: View {
                     .background(
                         Color.black.opacity(0.2)
                             .ignoresSafeArea()
-                            .onTapGesture {
-                                withAnimation { isInputExpanded = false; hideKeyboard() }
-                            }
+                            .onTapGesture { resetStates() }
                     )
                     .zIndex(200)
                 }
+                
+                // 4. 替换确认弹窗 (当瞬影满3张时)
+                if showReplaceSheet {
+                    ReplaceMomentSheet(
+                        items: todayMoments,
+                        onReplace: { oldItem in
+                            replaceMoment(oldItem: oldItem)
+                        },
+                        onCancel: {
+                            tempImage = nil
+                            showReplaceSheet = false
+                        }
+                    )
+                    .zIndex(300)
+                }
             }
-            // 4. 悬浮球
+            // 5. 增强版悬浮球 (带长按菜单 + 呼吸效果)
             .overlay(alignment: .bottomTrailing) {
-                if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) {
-                    FloatingBallView(
+                if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) && !showReplaceSheet {
+                    FloatingBallMenu(
                         offset: $ballOffset,
+                        isExpanded: $isFabExpanded,
                         onTap: {
+                            // 短按：打开普通文字输入
                             let generator = UIImpactFeedbackGenerator(style: .medium)
                             generator.impactOccurred()
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                                 isInputExpanded = true
                             }
-                        }
+                        },
+                        onCameraTap: { showCamera = true },
+                        onPhotoTap: { showPhotoLibrary = true }
                     )
                     .padding(.bottom, 100)
                     .padding(.trailing, 20)
@@ -83,8 +97,6 @@ struct TimeLineView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // 🔥 左上角菜单按钮已删除
-                
                 ToolbarItem(placement: .principal) {
                     Button(action: { showCalendar = true }) {
                         HStack(spacing: 4) {
@@ -108,95 +120,365 @@ struct TimeLineView: View {
                         .presentationDetents([.medium])
                 }
             }
+            // 相机
+            .sheet(isPresented: $showCamera, onDismiss: handleImageSelected) {
+                ImagePicker(selectedImage: $tempImage, sourceType: .camera)
+            }
+            // 相册
+            .sheet(isPresented: $showPhotoLibrary, onDismiss: handleImageSelected) {
+                ImagePicker(selectedImage: $tempImage, sourceType: .photoLibrary)
+            }
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
-            // 🔥 新增：监听 App 回到前台，自动更新日期
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 checkAndUpdateDate()
             }
-                        // 🔥 新增：监听凌晨 0 点日历变更，自动更新日期
             .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
                 checkAndUpdateDate()
             }
         }
     }
-    // 🔥 新增：日期检查逻辑
-        private func checkAndUpdateDate() {
-            // 如果当前选中的日期不是“今天”（说明可能是昨天的日期了），则自动跳转回今天
-            // 这里的逻辑可以根据需求调整：如果你希望用户在查看历史记录时不被打断，可以加一个判断（例如只在 selectedDate 是昨天时才跳转）
-            if !Calendar.current.isDateInToday(selectedDate) {
-                // 只有当显示的不是今天时，才刷新。
-                // 如果你的需求是“只要回来就必须是今天”，直接赋值即可。
-                // 这里我们假设：如果用户停留在昨天（变成了今天的前一天），我们需要把它拉回今天。
-                withAnimation {
-                    selectedDate = Date()
-                }
-            }
+    
+    // MARK: - 逻辑处理
+    
+    private func resetStates() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isInputExpanded = false
+            isFabExpanded = false
+            hideKeyboard()
         }
+    }
+    
+    private func checkAndUpdateDate() {
+        if !Calendar.current.isDateInToday(selectedDate) {
+            withAnimation { selectedDate = Date() }
+        }
+    }
+    
     func dateString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY年MM月dd日"
         if Calendar.current.isDateInToday(date) { return "今日" }
         return formatter.string(from: date)
     }
-}
-
-// MARK: - 🔥 纯净版悬浮球 (FloatingBallView)
-struct FloatingBallView: View {
-    @Binding var offset: CGSize
-    var onTap: () -> Void
     
-    @GestureState private var dragOffset: CGSize = .zero
+    // --- 瞬影核心逻辑 ---
     
-    var body: some View {
-        Button(action: onTap) {
-            // 纯粹的渐变球体
-            Circle()
-                .fill(
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            Color.blue,               // 核心：深蓝 (Inner)
-                            Color.cyan.opacity(0.8)   // 边缘：浅蓝/青色 (Outer)
-                        ]),
-                        center: .center,
-                        startRadius: 5,
-                        endRadius: 30
-                    )
-                )
-                .frame(width: 56, height: 56)
-                // 增加一点高光边框，增加立体感
-                .overlay(
-                    Circle()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.5), .clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                // 柔和的投影
-                .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
+    // 获取今日已有的瞬影
+    private var todayMoments: [TimelineItem] {
+        allItems.filter { item in
+            Calendar.current.isDateInToday(item.timestamp) && item.type == "moment"
         }
-        .offset(x: offset.width + dragOffset.width, y: offset.height + dragOffset.height)
-        .gesture(
-            DragGesture()
-                .updating($dragOffset) { value, state, _ in
-                    state = value.translation
-                }
-                .onEnded { value in
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        offset.width += value.translation.width
-                        offset.height += value.translation.height
-                    }
-                }
+    }
+    
+    private func handleImageSelected() {
+        guard tempImage != nil else { return }
+        
+        // 检查额度
+        if todayMoments.count >= 3 {
+            withAnimation { showReplaceSheet = true }
+        } else {
+            saveNewMoment()
+        }
+    }
+    
+    private func saveNewMoment() {
+        guard let image = tempImage else { return }
+        let newItem = TimelineItem(
+            content: "", // 瞬影不需要默认文字
+            iconName: "camera.aperture",
+            timestamp: Date(),
+            imageData: image.jpegData(compressionQuality: 0.7),
+            type: "moment" // 🔥 关键类型标识
         )
+        withAnimation {
+            modelContext.insert(newItem)
+        }
+        tempImage = nil
+    }
+    
+    private func replaceMoment(oldItem: TimelineItem) {
+        // 1. 删除旧的
+        withAnimation { modelContext.delete(oldItem) }
+        // 2. 保存新的
+        saveNewMoment()
+        // 3. 关闭弹窗
+        showReplaceSheet = false
     }
 }
 
-// MARK: - 列表视图 (TimelineListView - 保持不变)
+// MARK: - 增强版悬浮球 (逻辑重构：手势状态机 + 纯净外观 + 呼吸效果)
+struct FloatingBallMenu: View {
+    @Binding var offset: CGSize
+    @Binding var isExpanded: Bool
+    
+    // 回调
+    var onTap: () -> Void
+    var onCameraTap: () -> Void
+    var onPhotoTap: () -> Void
+    
+    // 内部状态
+    @State private var dragStartOffset: CGSize = .zero // 拖拽开始时的小球位置
+    @State private var activeSelection: Int? = nil // 0: None, 1: Camera, 2: Photo
+    @State private var isBreathing = false // 🔥 呼吸动画状态
+    
+    // 布局常量 (相对于球心的偏移)
+    private let cameraOffset = CGSize(width: -60, height: -70)
+    private let photoOffset  = CGSize(width: 10, height: -90)
+    private let triggerDistance: CGFloat = 40.0 // 吸附/触发距离
+    
+    var body: some View {
+        ZStack {
+            // 1. 径向菜单项 (展开时显示)
+            if isExpanded {
+                // 相机气泡
+                MenuBubble(icon: "camera.fill", color: .blue, label: "拍摄", isHighlighted: activeSelection == 1)
+                    .offset(cameraOffset)
+                    .transition(.scale.combined(with: .opacity))
+                
+                // 相册气泡
+                MenuBubble(icon: "photo.on.rectangle", color: .green, label: "相册", isHighlighted: activeSelection == 2)
+                    .offset(photoOffset)
+                    .transition(.scale.combined(with: .opacity))
+            }
+            
+            // 2. 主球体
+            ZStack {
+                // 🔥 新增：呼吸光晕层 (仅在收起状态下显示)
+                if !isExpanded {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 56, height: 56)
+                        .scaleEffect(isBreathing ? 1.3 : 1.0) // 缩放范围 1.0 -> 1.3
+                        .opacity(isBreathing ? 0.0 : 0.3)     // 透明度范围 0.3 -> 0.0 (消散)
+                }
+                
+                // 球体本体 (纯视觉组件，无 Button 干扰，无 "+" 号)
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.blue,               // 核心：深蓝 (Inner)
+                                Color.cyan.opacity(0.8)   // 边缘：浅蓝/青色 (Outer)
+                            ]),
+                            center: .center,
+                            startRadius: 5,
+                            endRadius: 30
+                        )
+                    )
+                    .frame(width: 56, height: 56)
+                    // 高光立体边框
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.5), .clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    // 柔和的投影
+                    .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
+            }
+            .scaleEffect(isExpanded ? 0.9 : 1.0) // 展开时轻微缩小，增加锁定感
+        }
+        .offset(offset)
+        // 🔥 核心手势逻辑 🔥
+        .gesture(
+            DragGesture(minimumDistance: 0) // minimumDistance: 0 确保按下即开始追踪
+                .onChanged { value in
+                    // [状态 A] 菜单已展开：进入“选择模式”
+                    if isExpanded {
+                        let currentDrag = value.translation
+                        
+                        // 计算到 Camera 的距离
+                        let distToCamera = hypot(currentDrag.width - cameraOffset.width, currentDrag.height - cameraOffset.height)
+                        // 计算到 Photo 的距离
+                        let distToPhoto = hypot(currentDrag.width - photoOffset.width, currentDrag.height - photoOffset.height)
+                        
+                        // 判定高亮
+                        if distToCamera < triggerDistance {
+                            if activeSelection != 1 {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+                                withAnimation(.spring()) { activeSelection = 1 }
+                            }
+                        } else if distToPhoto < triggerDistance {
+                            if activeSelection != 2 {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+                                withAnimation(.spring()) { activeSelection = 2 }
+                            }
+                        } else {
+                            if activeSelection != nil {
+                                withAnimation(.spring()) { activeSelection = nil }
+                            }
+                        }
+                    }
+                    // [状态 B] 菜单未展开：进入“移动模式”
+                    else {
+                        // 只有当位移足够大时，才更新位置 (防止点击时的抖动)
+                        offset = CGSize(
+                            width: dragStartOffset.width + value.translation.width,
+                            height: dragStartOffset.height + value.translation.height
+                        )
+                    }
+                }
+                .onEnded { value in
+                    // 1. 如果是展开状态：触发选择
+                    if isExpanded {
+                        if activeSelection == 1 {
+                            onCameraTap()
+                        } else if activeSelection == 2 {
+                            onPhotoTap()
+                        }
+                        // 无论如何，松手后收起菜单
+                        withAnimation(.spring()) {
+                            isExpanded = false
+                            activeSelection = nil
+                        }
+                    }
+                    // 2. 如果是未展开状态
+                    else {
+                        // 判断是“点击”还是“拖拽”
+                        // 如果位移非常小，视为点击
+                        if abs(value.translation.width) < 5 && abs(value.translation.height) < 5 {
+                            onTap()
+                        }
+                        // 否则视为拖拽结束，保存当前位置
+                        dragStartOffset = offset
+                    }
+                }
+        )
+        // 长按手势：独立于拖拽，专门用于触发“展开”
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.4)
+                .onEnded { _ in
+                    // 触发展开
+                    let generator = UIImpactFeedbackGenerator(style: .heavy)
+                    generator.impactOccurred()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        isExpanded = true
+                        // 展开时，记录当前的偏移量，防止位置跳变
+                        dragStartOffset = offset
+                    }
+                }
+        )
+        .onAppear {
+            dragStartOffset = offset
+            // 🔥 启动呼吸动画：无限循环，自动往复
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: false)) {
+                isBreathing = true
+            }
+        }
+    }
+    
+    // 子菜单气泡组件 (增加高亮状态)
+    struct MenuBubble: View {
+        let icon: String
+        let color: Color
+        let label: String
+        let isHighlighted: Bool // 高亮状态
+        
+        var body: some View {
+            VStack(spacing: 4) {
+                Circle()
+                    .fill(color)
+                    .frame(width: isHighlighted ? 60 : 48, height: isHighlighted ? 60 : 48) // 高亮放大
+                    .shadow(color: color.opacity(0.3), radius: 5, x: 0, y: 3)
+                    .overlay(
+                        Image(systemName: icon)
+                            .foregroundColor(.white)
+                            .font(isHighlighted ? .title2 : .headline)
+                    )
+                
+                Text(label)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(4)
+                    .opacity(isHighlighted ? 1.0 : 0.8)
+            }
+            .animation(.spring(), value: isHighlighted) // 增加弹性动画
+        }
+    }
+}
+
+// MARK: - 替换确认弹窗 (Sheet)
+struct ReplaceMomentSheet: View {
+    let items: [TimelineItem]
+    let onReplace: (TimelineItem) -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+                .onTapGesture { onCancel() }
+            
+            VStack(spacing: 24) {
+                VStack(spacing: 8) {
+                    Text("今日瞬影已满 (3/3)")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Text("选择一张旧的瞬间来替换")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(items) { item in
+                            if let data = item.imageData, let uiImage = UIImage(data: data) {
+                                Button(action: { onReplace(item) }) {
+                                    ZStack {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 110, height: 160)
+                                            .cornerRadius(12)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.white, lineWidth: 2)
+                                            )
+                                            .shadow(radius: 5)
+                                        
+                                        // 替换图标
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                            .padding(8)
+                                            .background(Color.black.opacity(0.4))
+                                            .clipShape(Circle())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Button("取消") { onCancel() }
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.05), radius: 2)
+            }
+            .padding(24)
+            .background(.ultraThinMaterial)
+            .cornerRadius(24)
+            .padding()
+        }
+    }
+}
+
+// MARK: - 列表视图 (TimelineListView - 仅瞬影不可修改)
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
@@ -228,8 +510,21 @@ struct TimelineListView: View {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         TimelineRowView(item: item, isLast: index == items.count - 1, onImageTap: onImageTap)
                             .contextMenu {
-                                Button { itemToEdit = item } label: { Label("修改", systemImage: "pencil") }
-                                Button(role: .destructive) { itemToDelete = item; showDeleteAlert = true } label: { Label("删除", systemImage: "trash") }
+                                // 🔥 核心修改：只有“非瞬影”类型才允许修改
+                                if item.type != "moment" {
+                                    Button {
+                                        itemToEdit = item
+                                    } label: {
+                                        Label("修改", systemImage: "pencil")
+                                    }
+                                }
+                                // 删除功能对所有类型开放
+                                Button(role: .destructive) {
+                                    itemToDelete = item
+                                    showDeleteAlert = true
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
                             }
                     }
                     Spacer().frame(height: 100)
@@ -240,8 +535,16 @@ struct TimelineListView: View {
             .sheet(item: $itemToEdit) { item in EditTimelineView(item: item) }
             .alert("确认删除?", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) { itemToDelete = nil }
-                Button("删除", role: .destructive) { if let item = itemToDelete { deleteItem(item) } }
-            } message: { Text("删除后将无法恢复这条记录。") }
+                Button("删除", role: .destructive) {
+                    if let item = itemToDelete { deleteItem(item) }
+                }
+            } message: {
+                if let item = itemToDelete, item.type == "moment" {
+                    Text("删除这张瞬影后，将自动恢复今日的一个拍摄额度。")
+                } else {
+                    Text("删除后将无法恢复这条记录。")
+                }
+            }
         }
     }
     
@@ -251,15 +554,17 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 单行组件 (TimelineRowView - 保持不变)
+// MARK: - 单行组件 (TimelineRowView - 无呼吸灯，仅精致边框)
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
     var onImageTap: ((UIImage) -> Void)?
     
-    private var isInspiration: Bool {
-        item.type == "inspiration"
-    }
+    // 🔥 已移除呼吸状态变量 @State private var isBreathing = false
+    
+    // 判断类型
+    private var isMoment: Bool { item.type == "moment" }
+    private var isInspiration: Bool { item.type == "inspiration" }
     
     private var tags: [String] {
         guard isInspiration else { return [] }
@@ -269,72 +574,129 @@ struct TimelineRowView: View {
     }
     
     private var cleanContent: String {
+        if isMoment { return "" }
         guard isInspiration else { return item.content }
         let pattern = "#[^\\s]+"
-        let range = NSRange(location: 0, length: item.content.utf16.count)
         let regex = try? NSRegularExpression(pattern: pattern)
-        let cleaned = regex?.stringByReplacingMatches(in: item.content, options: [], range: range, withTemplate: "") ?? item.content
+        let cleaned = regex?.stringByReplacingMatches(in: item.content, options: [], range: NSRange(location: 0, length: item.content.utf16.count), withTemplate: "") ?? item.content
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // 1. 左侧时间轴线条和节点
             VStack(spacing: 0) {
+                // 上半截线
                 Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
-                Circle()
-                    .fill(isInspiration ? Color.yellow : Color.blue)
-                    .frame(width: 10, height: 10)
-                    .overlay(Circle().stroke(Color(uiColor: .systemGroupedBackground), lineWidth: 2))
+                
+                // 节点
+                if isMoment {
+                    // 左侧节点：纯静态，与右侧呼应
+                    ZStack {
+                        Circle().fill(Color.blue.opacity(0.2)).frame(width: 18, height: 18)
+                        Circle().stroke(Color.blue, lineWidth: 1.5).frame(width: 18, height: 18)
+                        Circle().fill(Color.blue).frame(width: 8, height: 8)
+                    }
+                    // 🔥 已移除 scaleEffect
+                } else {
+                    Circle()
+                        .fill(isInspiration ? Color.yellow : Color.blue)
+                        .frame(width: 10, height: 10)
+                        .overlay(Circle().stroke(Color(uiColor: .systemGroupedBackground), lineWidth: 2))
+                }
+                
+                // 下半截线
                 if !isLast {
                     Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2).frame(maxHeight: .infinity)
                 } else { Spacer() }
             }
             .frame(width: 20)
             
+            // 2. 右侧内容卡片
             VStack(alignment: .leading, spacing: 6) {
-                Text(item.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.caption).foregroundColor(.secondary).padding(.top, 10)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    if let data = item.imageData, let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
-                            .cornerRadius(8).clipped()
-                            .onTapGesture { onImageTap?(uiImage) }
-                    }
+                // 时间戳
+                HStack {
+                    Text(item.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.caption).foregroundColor(.secondary)
                     
-                    if !cleanContent.isEmpty {
-                        Text(cleanContent).font(.body).foregroundColor(.primary).lineLimit(nil)
-                    }
-                    
-                    if !tags.isEmpty || isInspiration {
-                        if (!cleanContent.isEmpty || item.imageData != nil) { Divider().opacity(0.3) }
-                        HStack(spacing: 8) {
-                            if isInspiration {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "lightbulb.fill").font(.caption2).foregroundColor(.yellow)
-                                    Text("灵感").font(.caption2).foregroundColor(.secondary)
-                                }
-                                .padding(.vertical, 2).padding(.horizontal, 6)
-                                .background(Color.yellow.opacity(0.1)).cornerRadius(4)
-                            }
-                            ForEach(tags, id: \.self) { tag in
-                                Text(tag).font(.caption2).foregroundColor(.blue)
-                                    .padding(.vertical, 2).padding(.horizontal, 6)
-                                    .background(Color.blue.opacity(0.05)).cornerRadius(4)
-                            }
-                        }
-                        .padding(.top, (cleanContent.isEmpty && item.imageData == nil) ? 0 : 4)
+                    if isMoment {
+                        Text("瞬影")
+                            .font(.caption2).fontWeight(.bold).foregroundColor(.blue)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.1)).cornerRadius(4)
                     }
                 }
-                .padding(12)
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .padding(.top, 10)
+                
+                // 内容容器
+                VStack(alignment: .leading, spacing: 8) {
+                    
+                    // (A) 🔥 瞬影样式：只有静态边框
+                    if isMoment, let data = item.imageData, let uiImage = UIImage(data: data) {
+                        Image(uiImage: uiImage)
+                            .resizable().scaledToFill()
+                            .frame(height: 220)
+                            .frame(maxWidth: .infinity)
+                            // 裁剪图片圆角
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            // 前景边框层 (静态)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(
+                                        Color.blue.opacity(0.8), // 固定透明度
+                                        lineWidth: 2             // 固定线宽
+                                    )
+                            )
+                            // 点击交互
+                            .onTapGesture { onImageTap?(uiImage) }
+                            // 底部小图标
+                            .overlay(alignment: .bottomTrailing) {
+                                Image(systemName: "camera.aperture")
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(8)
+                                    .shadow(radius: 2)
+                            }
+                            // 🔥 已移除 onAppear 和动画
+                    }
+                    // (B) 普通样式 (无变化)
+                    else {
+                        if let data = item.imageData, let uiImage = UIImage(data: data) {
+                            Image(uiImage: uiImage)
+                                .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
+                                .cornerRadius(8).clipped()
+                                .onTapGesture { onImageTap?(uiImage) }
+                        }
+                        
+                        if !cleanContent.isEmpty {
+                            Text(cleanContent).font(.body).foregroundColor(.primary).lineLimit(nil)
+                        }
+                        
+                        if !tags.isEmpty || isInspiration {
+                            if (!cleanContent.isEmpty || item.imageData != nil) { Divider().opacity(0.3) }
+                            HStack(spacing: 8) {
+                                if isInspiration {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "lightbulb.fill").font(.caption2).foregroundColor(.yellow)
+                                        Text("灵感").font(.caption2).foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 2).padding(.horizontal, 6)
+                                    .background(Color.yellow.opacity(0.1)).cornerRadius(4)
+                                }
+                                ForEach(tags, id: \.self) { tag in
+                                    Text(tag).font(.caption2).foregroundColor(.blue)
+                                        .padding(.vertical, 2).padding(.horizontal, 6)
+                                        .background(Color.blue.opacity(0.05)).cornerRadius(4)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(isMoment ? 0 : 12) // 瞬影卡片无内边距
+                // 瞬影卡片背景透明；普通卡片保持灰色背景
+                .background(isMoment ? Color.clear : Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(12)
-                .shadow(color: isInspiration ? Color.yellow.opacity(0.1) : Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isInspiration ? Color.yellow.opacity(0.3) : Color.clear, lineWidth: 1)
-                )
+                // 瞬影去掉默认阴影；普通卡片保留阴影
+                .shadow(color: Color.black.opacity(isMoment ? 0 : 0.05), radius: 2, x: 0, y: 1)
                 .contentShape(Rectangle())
                 .padding(.bottom, 20)
             }
@@ -343,7 +705,7 @@ struct TimelineRowView: View {
     }
 }
 
-// MARK: - 输入栏 (展开后逻辑 - 保持不变)
+// MARK: - 输入栏 (InputBarView)
 struct InputBarView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var isExpanded: Bool
@@ -373,7 +735,7 @@ struct InputBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 标签联想栏
+            // 标签栏
             if isInputFocused && isInspirationMode && !recentTags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -388,10 +750,9 @@ struct InputBarView: View {
                     .padding(.horizontal).padding(.vertical, 8)
                 }
                 .background(.ultraThinMaterial)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
-            // 主输入区域
+            // 输入区
             VStack(alignment: .leading, spacing: 0) {
                 if let image = selectedImage {
                     HStack {
@@ -436,34 +797,19 @@ struct InputBarView: View {
                         .background(Color(uiColor: .secondarySystemFill))
                         .cornerRadius(18)
                         .lineLimit(1...5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18)
-                                .stroke(isInspirationMode ? Color.yellow.opacity(0.5) : Color.clear, lineWidth: 1)
-                        )
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(isInspirationMode ? Color.yellow.opacity(0.5) : Color.clear, lineWidth: 1))
                     
-                    // 按钮组
                     if !inputText.isEmpty || selectedImage != nil {
                         Button(action: saveItem) {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 32))
                                 .foregroundColor(isInspirationMode ? .yellow : .blue)
-                                .shadow(color: (isInspirationMode ? Color.yellow : Color.blue).opacity(0.3), radius: 4)
                         }
                         .padding(.bottom, 2)
-                        .transition(.scale.combined(with: .opacity))
                     } else {
-                        Button(action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                isExpanded = false
-                                isInputFocused = false
-                            }
-                        }) {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.secondary)
-                                .frame(width: 32, height: 32)
-                                .background(Color.secondary.opacity(0.1))
-                                .clipShape(Circle())
+                        Button(action: { withAnimation { isExpanded = false; isInputFocused = false } }) {
+                            Image(systemName: "chevron.down").font(.system(size: 20, weight: .bold)).foregroundColor(.secondary)
+                                .frame(width: 32, height: 32).background(Color.secondary.opacity(0.1)).clipShape(Circle())
                         }
                         .padding(.bottom, 6)
                     }
@@ -475,9 +821,7 @@ struct InputBarView: View {
             .shadow(color: Color.black.opacity(0.1), radius: 10, y: -5)
         }
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isInputFocused = true
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { isInputFocused = true }
         }
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
@@ -486,34 +830,23 @@ struct InputBarView: View {
     
     private func saveItem() {
         guard !inputText.isEmpty || selectedImage != nil else { return }
-        let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
-        let icon = imageData != nil ? "photo" : "text.bubble"
         let type = isInspirationMode ? "inspiration" : "timeline"
+        let icon = selectedImage != nil ? "photo" : "text.bubble"
+        let imageData = selectedImage?.jpegData(compressionQuality: 0.7)
         
-        let newItem = TimelineItem(
-            content: inputText,
-            iconName: icon,
-            timestamp: Date(),
-            imageData: imageData,
-            type: type
-        )
+        let newItem = TimelineItem(content: inputText, iconName: icon, timestamp: Date(), imageData: imageData, type: type)
         modelContext.insert(newItem)
-        try? modelContext.save()
         
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
         
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            inputText = ""
-            selectedImage = nil
-            isInputFocused = false
-            isInspirationMode = false
-            isExpanded = false
+        withAnimation {
+            inputText = ""; selectedImage = nil; isInputFocused = false; isInspirationMode = false; isExpanded = false
         }
     }
 }
 
-// 辅助 View
+// 辅助组件
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
@@ -523,16 +856,16 @@ struct EmptyStateView: View {
         .offset(y: -40)
     }
 }
+
 extension View {
     func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
         clipShape(RoundedCorner(radius: radius, corners: corners))
     }
-    #if canImport(UIKit)
     func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
-    #endif
 }
+
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity
     var corners: UIRectCorner = .allCorners

@@ -271,6 +271,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = shuiTime/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "水时间";
+				INFOPLIST_KEY_NSCameraUsageDescription = "记录生活瞬间需要使用您的相机";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要访问相册以保存或选择照片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -305,6 +307,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = shuiTime/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "水时间";
+				INFOPLIST_KEY_NSCameraUsageDescription = "记录生活瞬间需要使用您的相机";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要访问相册以保存或选择照片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
