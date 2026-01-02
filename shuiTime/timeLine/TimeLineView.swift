@@ -555,11 +555,14 @@ struct TimelineListView: View {
     }
 }
 
-// MARK: - 单行组件 (TimelineRowView - 无呼吸灯，仅精致边框 - 保持蓝色)
+// MARK: - 单行组件 (TimelineRowView - 修复删除崩溃版)
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
     var onImageTap: ((UIImage) -> Void)?
+    
+    // 🔥 修复核心：引入本地状态缓存图片，防止删除动画时访问已销毁的数据库对象
+    @State private var cachedImage: UIImage?
     
     // 判断类型
     private var isMoment: Bool { item.type == "moment" }
@@ -582,122 +585,137 @@ struct TimelineRowView: View {
     }
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // 1. 左侧时间轴线条和节点
-            VStack(spacing: 0) {
-                // 上半截线
-                Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
-                
-                // 节点
-                if isMoment {
-                    // 左侧节点：纯静态，与右侧呼应
-                    ZStack {
-                        Circle().fill(Color.blue.opacity(0.2)).frame(width: 18, height: 18)
-                        Circle().stroke(Color.blue, lineWidth: 1.5).frame(width: 18, height: 18)
-                        Circle().fill(Color.blue).frame(width: 8, height: 8)
-                    }
-                } else {
-                    Circle()
-                        .fill(isInspiration ? Color.yellow : Color.blue)
-                        .frame(width: 10, height: 10)
-                        .overlay(Circle().stroke(Color(uiColor: .systemGroupedBackground), lineWidth: 2))
-                }
-                
-                // 下半截线
-                if !isLast {
-                    Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2).frame(maxHeight: .infinity)
-                } else { Spacer() }
-            }
-            .frame(width: 20)
-            
-            // 2. 右侧内容卡片
-            VStack(alignment: .leading, spacing: 6) {
-                // 时间戳
-                HStack {
-                    Text(item.timestamp.formatted(date: .omitted, time: .shortened))
-                        .font(.caption).foregroundColor(.secondary)
+        // 🔥 安全检查：如果对象已删除且无缓存，直接返回空视图，避免崩溃
+        if item.isDeleted && cachedImage == nil {
+             return AnyView(EmptyView())
+        }
+        
+        return AnyView(
+            HStack(alignment: .top, spacing: 12) {
+                // 1. 左侧时间轴线条和节点
+                VStack(spacing: 0) {
+                    // 上半截线
+                    Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2, height: 15)
                     
+                    // 节点
                     if isMoment {
-                        Text("瞬影")
-                            .font(.caption2).fontWeight(.bold).foregroundColor(.blue)
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.1)).cornerRadius(4)
+                        ZStack {
+                            Circle().fill(Color.blue.opacity(0.2)).frame(width: 18, height: 18)
+                            Circle().stroke(Color.blue, lineWidth: 1.5).frame(width: 18, height: 18)
+                            Circle().fill(Color.blue).frame(width: 8, height: 8)
+                        }
+                    } else {
+                        Circle()
+                            .fill(isInspiration ? Color.yellow : Color.blue)
+                            .frame(width: 10, height: 10)
+                            .overlay(Circle().stroke(Color(uiColor: .systemGroupedBackground), lineWidth: 2))
                     }
-                }
-                .padding(.top, 10)
-                
-                // 内容容器
-                VStack(alignment: .leading, spacing: 8) {
                     
-                    // (A) 🔥 瞬影样式：只有静态边框
-                    if isMoment, let data = item.imageData, let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable().scaledToFill()
-                            .frame(height: 220)
-                            .frame(maxWidth: .infinity)
-                            // 裁剪图片圆角
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            // 前景边框层 (静态)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .strokeBorder(
-                                        Color.blue.opacity(0.8), // 固定透明度
-                                        lineWidth: 2             // 固定线宽
-                                    )
-                            )
-                            // 点击交互
-                            .onTapGesture { onImageTap?(uiImage) }
-                            // 底部小图标
-                            .overlay(alignment: .bottomTrailing) {
-                                Image(systemName: "camera.aperture")
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .padding(8)
-                                    .shadow(radius: 2)
-                            }
-                    }
-                    // (B) 普通样式 (无变化)
-                    else {
-                        if let data = item.imageData, let uiImage = UIImage(data: data) {
-                            Image(uiImage: uiImage)
-                                .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
-                                .cornerRadius(8).clipped()
-                                .onTapGesture { onImageTap?(uiImage) }
-                        }
-                        
-                        if !cleanContent.isEmpty {
-                            Text(cleanContent).font(.body).foregroundColor(.primary).lineLimit(nil)
-                        }
-                        
-                        if !tags.isEmpty || isInspiration {
-                            if (!cleanContent.isEmpty || item.imageData != nil) { Divider().opacity(0.3) }
-                            HStack(spacing: 8) {
-                                if isInspiration {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "lightbulb.fill").font(.caption2).foregroundColor(.yellow)
-                                        Text("灵感").font(.caption2).foregroundColor(.secondary)
-                                    }
-                                    .padding(.vertical, 2).padding(.horizontal, 6)
-                                    .background(Color.yellow.opacity(0.1)).cornerRadius(4)
-                                }
-                                ForEach(tags, id: \.self) { tag in
-                                    Text(tag).font(.caption2).foregroundColor(.blue)
-                                        .padding(.vertical, 2).padding(.horizontal, 6)
-                                        .background(Color.blue.opacity(0.05)).cornerRadius(4)
-                                }
-                            }
-                        }
-                    }
+                    // 下半截线
+                    if !isLast {
+                        Rectangle().fill(Color.blue.opacity(0.3)).frame(width: 2).frame(maxHeight: .infinity)
+                    } else { Spacer() }
                 }
-                .padding(isMoment ? 0 : 12) // 瞬影卡片无内边距
-                // 瞬影卡片背景透明；普通卡片保持灰色背景
-                .background(isMoment ? Color.clear : Color(uiColor: .secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                // 瞬影去掉默认阴影；普通卡片保留阴影
-                .shadow(color: Color.black.opacity(isMoment ? 0 : 0.05), radius: 2, x: 0, y: 1)
-                .contentShape(Rectangle())
-                .padding(.bottom, 20)
+                .frame(width: 20)
+                
+                // 2. 右侧内容卡片
+                VStack(alignment: .leading, spacing: 6) {
+                    // 时间戳
+                    HStack {
+                        Text(item.timestamp.formatted(date: .omitted, time: .shortened))
+                            .font(.caption).foregroundColor(.secondary)
+                        
+                        if isMoment {
+                            Text("瞬影")
+                                .font(.caption2).fontWeight(.bold).foregroundColor(.blue)
+                                .padding(.horizontal, 4).padding(.vertical, 1)
+                                .background(Color.blue.opacity(0.1)).cornerRadius(4)
+                        }
+                    }
+                    .padding(.top, 10)
+                    
+                    // 内容容器
+                    VStack(alignment: .leading, spacing: 8) {
+                        
+                        // (A) 🔥 瞬影样式：使用 cachedImage
+                        if isMoment, let uiImage = cachedImage {
+                            Image(uiImage: uiImage)
+                                .resizable().scaledToFill()
+                                .frame(height: 220)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .strokeBorder(Color.blue.opacity(0.8), lineWidth: 2)
+                                )
+                                .onTapGesture { onImageTap?(uiImage) }
+                                .overlay(alignment: .bottomTrailing) {
+                                    Image(systemName: "camera.aperture")
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .padding(8)
+                                        .shadow(radius: 2)
+                                }
+                        }
+                        // (B) 普通样式
+                        else {
+                            // 普通记录的图片也使用 cachedImage
+                            if let uiImage = cachedImage {
+                                Image(uiImage: uiImage)
+                                    .resizable().scaledToFill().frame(height: 160).frame(maxWidth: .infinity)
+                                    .cornerRadius(8).clipped()
+                                    .onTapGesture { onImageTap?(uiImage) }
+                            }
+                            
+                            if !cleanContent.isEmpty {
+                                Text(cleanContent).font(.body).foregroundColor(.primary).lineLimit(nil)
+                            }
+                            
+                            if !tags.isEmpty || isInspiration {
+                                if (!cleanContent.isEmpty || cachedImage != nil) { Divider().opacity(0.3) }
+                                HStack(spacing: 8) {
+                                    if isInspiration {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "lightbulb.fill").font(.caption2).foregroundColor(.yellow)
+                                            Text("灵感").font(.caption2).foregroundColor(.secondary)
+                                        }
+                                        .padding(.vertical, 2).padding(.horizontal, 6)
+                                        .background(Color.yellow.opacity(0.1)).cornerRadius(4)
+                                    }
+                                    ForEach(tags, id: \.self) { tag in
+                                        Text(tag).font(.caption2).foregroundColor(.blue)
+                                            .padding(.vertical, 2).padding(.horizontal, 6)
+                                            .background(Color.blue.opacity(0.05)).cornerRadius(4)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(isMoment ? 0 : 12)
+                    .background(isMoment ? Color.clear : Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(isMoment ? 0 : 0.05), radius: 2, x: 0, y: 1)
+                    .contentShape(Rectangle())
+                    .padding(.bottom, 20)
+                }
+                Spacer()
             }
-            Spacer()
+            // 🔥 核心逻辑：加载数据
+            .onAppear { loadImage() }
+            // 监听数据变更（针对编辑操作）
+            .onChange(of: item.imageData) { _, _ in loadImage() }
+        )
+    }
+    
+    // 🔥 安全加载图片方法
+    private func loadImage() {
+        // 如果对象已经被删除，不要去访问它的属性，直接退出
+        if item.isDeleted { return }
+        
+        // 安全读取 data
+        if let data = item.imageData, let image = UIImage(data: data) {
+            self.cachedImage = image
+        } else {
+            self.cachedImage = nil
         }
     }
 }
