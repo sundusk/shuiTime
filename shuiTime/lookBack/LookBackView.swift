@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 
-// 🔥 1. 定义一个简单的数据包装器，用于控制 sheet 弹窗
+// 数据包装器，用于控制 sheet 弹窗
 struct LastYearDataWrapper: Identifiable {
     let id = UUID()
     let items: [TimelineItem]
@@ -29,45 +29,50 @@ struct LookBackView: View {
     // 全屏图片状态
     @State private var fullScreenImage: FullScreenImage?
     
-    // 🔥 2. 修改：使用可选对象来控制弹窗，而不是 Bool
-    // 当它不为 nil 时，弹窗自动显示；为 nil 时隐藏。
+    // sheet 弹窗控制
     @State private var lastYearSheetData: LastYearDataWrapper?
     
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                // 🔥 1. 新增：流动的蓝色弥散背景 (替代原本的灰色背景)
+                MeshGradientBackground()
                 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) { // 稍微增加间距
                         
-                        // 1. 顶部统计
-                        StatsHeaderView(items: itemsInMonth(date: currentMonth))
-                            .padding(.top, 10)
+                        // 🔥 2. 升级：时光封面卡片 (多层堆叠 + 色差质感)
+                        NavigationLink(destination: MomentGalleryView()) {
+                            TimeCoverCard(
+                                momentItem: latestMomentInMonth(date: currentMonth),
+                                month: currentMonth
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.top, 10)
+                        .shadow(color: .blue.opacity(0.05), radius: 20, x: 0, y: 10) // 封面增加额外的环境光阴影
                         
-                        // 2. 热力图
+                        // 3. 热力图
                         HeatMapCard(items: allItems)
                         
-                        // 3. 去年今日
+                        // 4. 去年今日
                         if let lastYearItems = itemsLastYear(from: selectedDate), !lastYearItems.isEmpty {
                             LastYearCapsuleCard(
                                 items: lastYearItems,
                                 onTap: {
-                                    // 🔥 3. 触发：直接把数据塞给这个对象，Sheet 就会自动弹出
-                                    // 这样保证了 Sheet 打开时一定有数据
                                     self.lastYearSheetData = LastYearDataWrapper(items: lastYearItems)
                                 }
                             )
                         }
                         
-                        // 4. 日历视图
+                        // 5. 日历视图
                         CalendarCardView(
                             currentMonth: $currentMonth,
                             selectedDate: $selectedDate,
                             recordedDates: getRecordedDates()
                         )
                         
-                        // 5. 选中日期的详细回顾
+                        // 6. 选中日期的详细回顾
                         DayReviewSection(
                             date: selectedDate,
                             items: itemsInDay(date: selectedDate),
@@ -97,7 +102,6 @@ struct LookBackView: View {
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
             }
-            // 🔥 4. 修改：使用 item 形式的 sheet
             .sheet(item: $lastYearSheetData) { wrapper in
                 LastYearDetailView(items: wrapper.items, onImageTap: { image in
                     fullScreenImage = FullScreenImage(image: image)
@@ -108,16 +112,24 @@ struct LookBackView: View {
     
     // MARK: - 数据处理辅助函数
     
+    // 获取本月最新的一张瞬影
+    private func latestMomentInMonth(date: Date) -> TimelineItem? {
+        let calendar = Calendar.current
+        return allItems
+            .filter {
+                calendar.isDate($0.timestamp, equalTo: date, toGranularity: .month) &&
+                $0.type == "moment" && // 必须是瞬影
+                $0.imageData != nil    // 必须有图
+            }
+            .sorted { $0.timestamp > $1.timestamp } // 按时间倒序
+            .first
+    }
+    
     private func getRecordedDates() -> Set<String> {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dates = allItems.map { formatter.string(from: $0.timestamp) }
         return Set(dates)
-    }
-    
-    private func itemsInMonth(date: Date) -> [TimelineItem] {
-        let calendar = Calendar.current
-        return allItems.filter { calendar.isDate($0.timestamp, equalTo: date, toGranularity: .month) }
     }
     
     private func itemsInDay(date: Date) -> [TimelineItem] {
@@ -133,9 +145,199 @@ struct LookBackView: View {
     }
 }
 
-// MARK: - 热力图卡片
+// MARK: - 🔥 新增：流动的蓝色弥散背景组件
+// MARK: - 🔥 修复：流动的蓝色弥散背景组件（已适配深色模式）
+struct MeshGradientBackground: View {
+    @State private var animate = false
+    @Environment(\.colorScheme) var colorScheme // 获取当前颜色模式
+    
+    var body: some View {
+        ZStack {
+            // 1. 基底色：使用系统自适应背景色
+            // Light: 浅灰白 / Dark: 纯黑或深灰
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+            
+            // 2. 弥散光球组
+            GeometryReader { geo in
+                ZStack {
+                    // 左上：深邃蓝
+                    Circle()
+                        .fill(Color.blue.opacity(colorScheme == .dark ? 0.2 : 0.08)) // 深色模式下稍微加深透明度
+                        .frame(width: geo.size.width * 0.8)
+                        .blur(radius: 60)
+                        .offset(x: -geo.size.width * 0.2, y: -geo.size.height * 0.1)
+                        .offset(x: animate ? 20 : -20, y: animate ? 10 : -10)
+                    
+                    // 右中：清透青
+                    Circle()
+                        .fill(Color.cyan.opacity(colorScheme == .dark ? 0.15 : 0.06))
+                        .frame(width: geo.size.width * 0.6)
+                        .blur(radius: 50)
+                        .offset(x: geo.size.width * 0.3, y: geo.size.height * 0.2)
+                        .offset(x: animate ? -15 : 15, y: animate ? -15 : 15)
+                    
+                    // 左下：极淡紫 (增加层次)
+                    Circle()
+                        .fill(Color.indigo.opacity(colorScheme == .dark ? 0.15 : 0.05))
+                        .frame(width: geo.size.width * 0.7)
+                        .blur(radius: 70)
+                        .offset(x: -geo.size.width * 0.1, y: geo.size.height * 0.4)
+                        .scaleEffect(animate ? 1.1 : 1.0)
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            // 极慢的呼吸动画
+            withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
+                animate.toggle()
+            }
+        }
+    }
+}
+
+
+// MARK: - 时光封面卡片组件 (优化引导版 - 已适配深色模式)
+struct TimeCoverCard: View {
+    let momentItem: TimelineItem?
+    let month: Date
+    @Environment(\.colorScheme) var colorScheme // 获取当前颜色模式
+    
+    var monthString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM" // 例如: January
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter.string(from: month).uppercased()
+    }
+    
+    var yearString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy"
+        return formatter.string(from: month)
+    }
+    
+    var body: some View {
+        ZStack {
+            // --- 装饰层 1 (最底层) ---
+            RoundedRectangle(cornerRadius: 12)
+                // 🔥 适配：使用自适应背景色
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                .frame(height: 250)
+                .shadow(color: .black.opacity(0.05), radius: 4, x: -2, y: 2)
+                .rotationEffect(.degrees(-6))
+                .offset(x: -12, y: 8)
+                .opacity(0.8)
+            
+            // --- 装饰层 2 (中间层) ---
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.blue.opacity(0.05))
+                .frame(height: 250)
+                .shadow(color: .black.opacity(0.08), radius: 5, x: 2, y: 3)
+                .rotationEffect(.degrees(-3))
+                .offset(x: -4, y: 4)
+                .padding(.horizontal, 20)
+            
+            // --- 主封面卡片 (顶层) ---
+            VStack(spacing: 0) {
+                if let item = momentItem, let data = item.imageData, let uiImage = UIImage(data: data) {
+                    // --- 有照片的状态 ---
+                    HStack(spacing: 0) {
+                        SprocketColumn() // 胶卷齿孔
+                        
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 180)
+                            .clipped()
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.blue.opacity(0.8), lineWidth: 2)
+                            )
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 8)
+                        
+                        SprocketColumn()
+                    }
+                    // 胶卷背景保持深色（模拟胶卷）
+                    .background(Color.black.opacity(0.9))
+                    
+                    // 底部区域
+                    VStack(spacing: 4) {
+                        HStack(alignment: .lastTextBaseline) {
+                            Text(monthString)
+                                .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                                // 🔥 适配：改为 primary，深色模式下变白
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Text(yearString)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.gray.opacity(0.6))
+                        }
+                        
+                        // 中文副标题
+                        Text("— 点击进入瞬影长廊 —")
+                            .font(.caption2)
+                            .fontWeight(.light)
+                            .kerning(4)
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .padding(.top, 2)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    // 🔥 适配：改为自适应背景
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    
+                } else {
+                    // --- 空状态 ---
+                    VStack(spacing: 8) {
+                        Image(systemName: "camera.shutter.button")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.3))
+                        Text("本月暂无瞬影").font(.subheadline).foregroundColor(.gray)
+                    }
+                    .frame(height: 250)
+                    .frame(maxWidth: .infinity)
+                    // 🔥 适配：使用自适应背景
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(style: StrokeStyle(lineWidth: 2, dash: [5]))
+                            .foregroundColor(.gray.opacity(0.2))
+                    )
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            // 深色模式下阴影稍微加重一点点，或者保持不变
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 8, x: 0, y: 4)
+            .rotationEffect(.degrees(2))
+        }
+        .padding(.vertical, 10)
+    }
+}
+
+// 胶卷齿孔装饰组件
+struct SprocketColumn: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(0..<8) { _ in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 8, height: 12)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - 增强交互版热力图卡片
 struct HeatMapCard: View {
     let items: [TimelineItem]
+    
+    // 🔥 新增：选中的热力图日期
+    @State private var selectedHeatMapDate: Date? = nil
     
     struct HeatMapDay: Identifiable {
         let id = UUID()
@@ -179,21 +381,43 @@ struct HeatMapCard: View {
                 .font(.headline)
                 .padding(.horizontal, 4)
             
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(heatMapData.indices, id: \.self) { weekIndex in
-                        let week = heatMapData[weekIndex]
-                        VStack(spacing: 4) {
-                            ForEach(week) { day in
-                                HeatMapCell(day: day)
+            HStack {
+                Spacer(minLength: 0)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(heatMapData.indices, id: \.self) { weekIndex in
+                            let week = heatMapData[weekIndex]
+                            VStack(spacing: 4) {
+                                ForEach(week) { day in
+                                    // 🔥 修改：传入选中状态和点击事件
+                                    HeatMapCell(
+                                        day: day,
+                                        isSelected: Calendar.current.isDate(day.date, inSameDayAs: selectedHeatMapDate ?? Date.distantPast),
+                                        onTap: {
+                                            withAnimation(.spring(response: 0.3)) {
+                                                if let current = selectedHeatMapDate, Calendar.current.isDate(current, inSameDayAs: day.date) {
+                                                    selectedHeatMapDate = nil // 再次点击取消选中
+                                                } else {
+                                                    selectedHeatMapDate = day.date
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 4)
+                .fixedSize(horizontal: true, vertical: false)
+                
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity)
             
             HStack {
+                // 左侧图例
                 Text("Less").font(.caption2).foregroundColor(.secondary)
                 HStack(spacing: 3) {
                     RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.1)).frame(width: 10, height: 10)
@@ -201,76 +425,78 @@ struct HeatMapCard: View {
                     RoundedRectangle(cornerRadius: 2).fill(Color.green).frame(width: 10, height: 10)
                 }
                 Text("More").font(.caption2).foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // 🔥 蓝色标记区域：显示选中的日期
+                if let date = selectedHeatMapDate {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                        Text(formatDate(date))
+                    }
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
+                    .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+                }
             }
             .padding(.top, 4)
             .padding(.horizontal, 4)
         }
         .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.9))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
+    // 日期格式化
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日"
+        return formatter.string(from: date)
+    }
+    
     struct HeatMapCell: View {
         let day: HeatMapDay
+        let isSelected: Bool // 新增：选中状态
+        let onTap: () -> Void // 新增：点击回调
+        
         var body: some View {
-            var color: Color {
+            let color: Color = {
                 if day.count == 0 { return Color.secondary.opacity(0.1) }
                 if day.count <= 2 { return Color.green.opacity(0.4) }
                 return Color.green
-            }
+            }()
+            
             return ZStack {
-                RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 14, height: 14)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color)
+                    .frame(width: 14, height: 14)
+                
+                // 今日标记
                 if day.isToday {
                     RoundedRectangle(cornerRadius: 2)
                         .stroke(Color.primary.opacity(0.6), lineWidth: 1.5)
                         .frame(width: 14, height: 14)
                 }
+                
+                // 🔥 选中后的视觉反馈 (蓝色外边框)
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.blue, lineWidth: 2)
+                        .frame(width: 18, height: 18)
+                }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onTap() } // 触发点击
         }
     }
 }
 
-// MARK: - 1. 顶部统计组件
-struct StatsHeaderView: View {
-    let items: [TimelineItem]
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            StatCard(title: "本月记录", value: "\(items.count)", unit: "条", icon: "doc.text.fill", color: .blue)
-            StatCard(title: "灵感捕捉", value: "\(items.filter { $0.type == "inspiration" }.count)", unit: "个", icon: "lightbulb.fill", color: .yellow)
-            StatCard(title: "影像瞬间", value: "\(items.filter { $0.imageData != nil }.count)", unit: "张", icon: "photo.fill", color: .purple)
-        }
-    }
-}
-
-struct StatCard: View {
-    let title: String, value: String, unit: String, icon: String, color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon).foregroundColor(color)
-                Spacer()
-            }
-            .font(.caption)
-            
-            HStack(alignment: .lastTextBaseline, spacing: 2) {
-                Text(value).font(.title2).bold().foregroundColor(.primary)
-                Text(unit).font(.caption2).foregroundColor(.secondary)
-            }
-            
-            Text(title).font(.caption2).foregroundColor(.gray)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-    }
-}
-
-// MARK: - 2. 日历卡片组件
+// MARK: - 日历卡片组件 (保持不变)
 struct CalendarCardView: View {
     @Binding var currentMonth: Date
     @Binding var selectedDate: Date
@@ -314,7 +540,8 @@ struct CalendarCardView: View {
             }
         }
         .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        // 🔥 适配新背景
+        .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.9))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
@@ -372,7 +599,7 @@ struct DayCell: View {
     }
 }
 
-// MARK: - 3. 选中日期详情组件
+// MARK: - 选中日期详情组件 (保持不变)
 struct DayReviewSection: View {
     let date: Date
     let items: [TimelineItem]
@@ -410,7 +637,8 @@ struct DayReviewSection: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.5))
+                // 🔥 适配新背景：增加透明度
+                .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.6))
                 .cornerRadius(12)
             } else {
                 LazyVStack(spacing: 12) {
@@ -430,10 +658,15 @@ struct DayReviewSection: View {
     }
 }
 
-// MARK: - 列表行组件 (公共)
+// MARK: - 优化后的列表行组件 (支持瞬影标记)
 struct CompactTimelineRow: View {
     let item: TimelineItem
     var onImageTap: ((UIImage) -> Void)?
+    
+    // 判断是否为瞬影类型
+    private var isMoment: Bool {
+        item.type == "moment"
+    }
     
     private var tags: [String] {
         item.content.split(separator: " ")
@@ -451,6 +684,7 @@ struct CompactTimelineRow: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
+            // 左侧时间与标记
             VStack(alignment: .trailing, spacing: 4) {
                 Text(item.timestamp.formatted(date: .omitted, time: .shortened))
                     .font(.caption2)
@@ -462,6 +696,11 @@ struct CompactTimelineRow: View {
                     Image(systemName: "lightbulb.fill")
                         .font(.system(size: 10))
                         .foregroundColor(.yellow)
+                } else if isMoment {
+                    // 🔥 瞬影专属标记小圆点
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 6, height: 6)
                 }
             }
             .frame(width: 50, alignment: .trailing)
@@ -470,46 +709,60 @@ struct CompactTimelineRow: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
                     if let data = item.imageData, let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 60, height: 60)
-                            .cornerRadius(8)
-                            .clipped()
-                            .contentShape(Rectangle())
-                            .onTapGesture { onImageTap?(uiImage) }
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: isMoment ? 80 : 60, height: isMoment ? 80 : 60) // 瞬影图片略大
+                                .cornerRadius(8)
+                                .clipped()
+                                // 🔥 瞬影蓝色边框识别
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isMoment ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 1.5)
+                                )
+                            
+                            if isMoment {
+                                // 🔥 蓝色“瞬影”标签
+                                Text("瞬影")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background(Color.blue)
+                                    .cornerRadius(4)
+                                    .offset(x: 5, y: -5)
+                            }
+                        }
+                        .onTapGesture { onImageTap?(uiImage) }
                     }
                     
-                    if !cleanContent.isEmpty {
-                        Text(cleanContent)
-                            .font(.system(size: 15))
-                            .foregroundColor(.primary)
-                            .lineLimit(4)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if item.imageData != nil {
-                        Text("分享了一张图片")
-                            .font(.italic(.subheadline)())
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if !cleanContent.isEmpty {
+                            Text(cleanContent)
+                                .font(.system(size: 15))
+                                .foregroundColor(.primary)
+                                .lineLimit(4)
+                        } else if isMoment {
+                            Text("捕捉了一个瞬影")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .italic()
+                        } else if item.imageData != nil {
+                            Text("分享了一张图片")
+                                .font(.italic(.subheadline)())
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
+                // 标签展示
                 if !tags.isEmpty || item.type == "inspiration" {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             if item.type == "inspiration" {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "lightbulb.fill").font(.system(size: 8))
-                                    Text("灵感")
-                                }
-                                .font(.system(size: 10, weight: .bold))
-                                .padding(.vertical, 3)
-                                .padding(.horizontal, 6)
-                                .background(Color.yellow.opacity(0.15))
-                                .foregroundColor(.orange)
-                                .cornerRadius(4)
+                                TagLabel(text: "灵感", color: .orange, icon: "lightbulb.fill")
                             }
-                            
                             ForEach(tags, id: \.self) { tag in
                                 Text(tag)
                                     .font(.system(size: 10, weight: .medium))
@@ -525,9 +778,34 @@ struct CompactTimelineRow: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(uiColor: .secondarySystemGroupedBackground))
+            .background(isMoment ? Color.blue.opacity(0.03) : Color(uiColor: .secondarySystemGroupedBackground))
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isMoment ? Color.blue.opacity(0.1) : Color.clear, lineWidth: 1)
+            )
         }
+    }
+}
+
+// 辅助子组件：统一标签样式
+struct TagLabel: View {
+    let text: String
+    let color: Color
+    let icon: String?
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            if let icon = icon {
+                Image(systemName: icon).font(.system(size: 8))
+            }
+            Text(text)
+        }
+        .font(.system(size: 10, weight: .bold))
+        .padding(.vertical, 3)
+        .padding(.horizontal, 6)
+        .background(color.opacity(0.15))
+        .foregroundColor(color)
+        .cornerRadius(4)
     }
 }
