@@ -32,113 +32,120 @@ struct TimeLineView: View {
     @Query private var allItems: [TimelineItem]
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // 1. 背景层
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                    .onTapGesture { resetStates() }
-                
-                // 2. 列表层
-                TimelineListView(date: selectedDate, onImageTap: { image in
-                    fullScreenImage = FullScreenImage(image: image)
-                })
-                .onTapGesture { resetStates() }
-                
-                // 3. 普通输入栏 (底部弹出)
-                if isInputExpanded {
-                    VStack {
-                        Spacer()
-                        InputBarView(isExpanded: $isInputExpanded)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    .background(
-                        Color.black.opacity(0.2)
-                            .ignoresSafeArea()
+            NavigationStack {
+                // 🔥 1. 新增：GeometryReader 用于获取屏幕尺寸和安全区域
+                GeometryReader { geo in
+                    ZStack {
+                        // 1. 背景层
+                        Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                             .onTapGesture { resetStates() }
-                    )
-                    .zIndex(200)
-                }
-                
-                // 4. 替换确认弹窗 (当瞬影满3张时)
-                if showReplaceSheet {
-                    ReplaceMomentSheet(
-                        items: todayMoments,
-                        onReplace: { oldItem in
-                            replaceMoment(oldItem: oldItem)
-                        },
-                        onCancel: {
-                            tempImage = nil
-                            showReplaceSheet = false
-                        }
-                    )
-                    .zIndex(300)
-                }
-            }
-            // 5. 增强版悬浮球 (带长按菜单 + 呼吸效果 + 🔥绿色新皮肤)
-            .overlay(alignment: .bottomTrailing) {
-                if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) && !showReplaceSheet {
-                    FloatingBallMenu(
-                        offset: $ballOffset,
-                        isExpanded: $isFabExpanded,
-                        onTap: {
-                            // 短按：打开普通文字输入
-                            let generator = UIImpactFeedbackGenerator(style: .medium)
-                            generator.impactOccurred()
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                isInputExpanded = true
+                        
+                        // 2. 列表层
+                        TimelineListView(date: selectedDate, onImageTap: { image in
+                            fullScreenImage = FullScreenImage(image: image)
+                        })
+                        .onTapGesture { resetStates() }
+                        
+                        // 3. 普通输入栏 (底部弹出)
+                        if isInputExpanded {
+                            VStack {
+                                Spacer()
+                                InputBarView(isExpanded: $isInputExpanded)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
-                        },
-                        onCameraTap: { showCamera = true },
-                        onPhotoTap: { showPhotoLibrary = true }
-                    )
-                    .padding(.bottom, 100)
-                    .padding(.trailing, 20)
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Button(action: { showCalendar = true }) {
-                        HStack(spacing: 4) {
-                            Text(dateString(selectedDate)).font(.headline).foregroundColor(.primary)
-                            Image(systemName: "chevron.down.circle.fill").font(.caption).foregroundColor(.secondary)
+                            .background(
+                                Color.black.opacity(0.2)
+                                    .ignoresSafeArea()
+                                    .onTapGesture { resetStates() }
+                            )
+                            .zIndex(200)
+                        }
+                        
+                        // 4. 替换确认弹窗 (当瞬影满3张时)
+                        if showReplaceSheet {
+                            ReplaceMomentSheet(
+                                items: todayMoments,
+                                onReplace: { oldItem in
+                                    replaceMoment(oldItem: oldItem)
+                                },
+                                onCancel: {
+                                    tempImage = nil
+                                    showReplaceSheet = false
+                                }
+                            )
+                            .zIndex(300)
+                        }
+                    }
+                    // 5. 增强版悬浮球 (带长按菜单 + 呼吸效果 + 🔥绿色新皮肤)
+                    .overlay(alignment: .bottomTrailing) {
+                        if !isInputExpanded && Calendar.current.isDateInToday(selectedDate) && !showReplaceSheet {
+                            FloatingBallMenu(
+                                offset: $ballOffset,
+                                isExpanded: $isFabExpanded,
+                                // 🔥 2. 核心修改：传入容器尺寸和安全区域信息
+                                containerSize: geo.size,
+                                safeAreaInsets: geo.safeAreaInsets,
+                                
+                                onTap: {
+                                    // 短按：打开普通文字输入
+                                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                                    generator.impactOccurred()
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                        isInputExpanded = true
+                                    }
+                                },
+                                onCameraTap: { showCamera = true },
+                                onPhotoTap: { showPhotoLibrary = true }
+                            )
+                            .padding(.bottom, 100)
+                            .padding(.trailing, 20)
                         }
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { withAnimation { selectedDate = Date() } }) {
-                        Text("今天").font(.subheadline)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        Button(action: { showCalendar = true }) {
+                            HStack(spacing: 4) {
+                                Text(dateString(selectedDate)).font(.headline).foregroundColor(.primary)
+                                Image(systemName: "chevron.down.circle.fill").font(.caption).foregroundColor(.secondary)
+                            }
+                        }
                     }
-                    .disabled(Calendar.current.isDateInToday(selectedDate))
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: { withAnimation { selectedDate = Date() } }) {
+                            Text("今天").font(.subheadline)
+                        }
+                        .disabled(Calendar.current.isDateInToday(selectedDate))
+                    }
                 }
-            }
-            .sheet(isPresented: $showCalendar) {
-                VStack {
-                    DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .padding()
-                        .presentationDetents([.medium])
+                .sheet(isPresented: $showCalendar) {
+                    VStack {
+                        DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .padding()
+                            .presentationDetents([.medium])
+                    }
                 }
-            }
-            // 相机
-            .sheet(isPresented: $showCamera, onDismiss: handleImageSelected) {
-                ImagePicker(selectedImage: $tempImage, sourceType: .camera)
-            }
-            // 相册
-            .sheet(isPresented: $showPhotoLibrary, onDismiss: handleImageSelected) {
-                ImagePicker(selectedImage: $tempImage, sourceType: .photoLibrary)
-            }
-            .fullScreenCover(item: $fullScreenImage) { wrapper in
-                FullScreenPhotoView(image: wrapper.image)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                checkAndUpdateDate()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
-                checkAndUpdateDate()
+                // 相机
+                .sheet(isPresented: $showCamera, onDismiss: handleImageSelected) {
+                    ImagePicker(selectedImage: $tempImage, sourceType: .camera)
+                }
+                // 相册
+                .sheet(isPresented: $showPhotoLibrary, onDismiss: handleImageSelected) {
+                    ImagePicker(selectedImage: $tempImage, sourceType: .photoLibrary)
+                }
+                .fullScreenCover(item: $fullScreenImage) { wrapper in
+                    FullScreenPhotoView(image: wrapper.image)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                    checkAndUpdateDate()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+                    checkAndUpdateDate()
+                }
             }
         }
-    }
     
     // MARK: - 逻辑处理
     
@@ -213,182 +220,183 @@ struct FloatingBallMenu: View {
     @Binding var offset: CGSize
     @Binding var isExpanded: Bool
     
-    // 回调
+    // 接收尺寸参数
+    var containerSize: CGSize
+    var safeAreaInsets: EdgeInsets
+    
     var onTap: () -> Void
     var onCameraTap: () -> Void
     var onPhotoTap: () -> Void
     
-    // 内部状态
-    @State private var dragStartOffset: CGSize = .zero // 拖拽开始时的小球位置
-    @State private var activeSelection: Int? = nil // 0: None, 1: Camera, 2: Photo
-    @State private var isBreathing = false // 呼吸动画状态
+    @State private var dragStartOffset: CGSize = .zero
+    @State private var activeSelection: Int? = nil
+    @State private var isBreathing = false
     
-    // 布局常量 (相对于球心的偏移)
-    private let cameraOffset = CGSize(width: -60, height: -70)
-    private let photoOffset  = CGSize(width: 10, height: -90)
-    private let triggerDistance: CGFloat = 40.0 // 吸附/触发距离
+    // 🔥 1. 计算属性：判断当前球是否在屏幕右侧
+    private var isOnRightSide: Bool {
+        // 初始位置在右下角 (trailing: 20)，球心大概在 width - 48
+        // 加上当前的偏移量 offset.width
+        let initialCenterX = containerSize.width - 20 - 28 // 20是padding, 28是半径
+        let currentCenterX = initialCenterX + offset.width
+        return currentCenterX > containerSize.width / 2
+    }
+    
+    // 🔥 2. 动态偏移量：根据位置自动翻转 X 轴
+    private var cameraOffset: CGSize {
+        // 如果在右边，往左弹(-60)；如果在左边，往右弹(60)
+        CGSize(width: isOnRightSide ? -65 : 65, height: -65)
+    }
+    
+    private var photoOffset: CGSize {
+        // 如果在右边，往左弹(-15)；如果在左边，往右弹(15)
+        // 稍微错开高度，形成扇形
+        CGSize(width: isOnRightSide ? -15 : 15, height: -100)
+    }
+    
+    private let triggerDistance: CGFloat = 45.0 // 稍微增大触发区域
     
     var body: some View {
         ZStack {
-            // 1. 径向菜单项 (展开时显示)
+            // 菜单项
             if isExpanded {
-                // 相机气泡 (保持蓝色，代表生成蓝色的瞬影)
+                // 相机
                 MenuBubble(icon: "camera.fill", color: .blue, label: "拍摄", isHighlighted: activeSelection == 1)
                     .offset(cameraOffset)
                     .transition(.scale.combined(with: .opacity))
                 
-                // 相册气泡 (保持绿色，代表资源库)
+                // 相册
                 MenuBubble(icon: "photo.on.rectangle", color: .green, label: "相册", isHighlighted: activeSelection == 2)
                     .offset(photoOffset)
                     .transition(.scale.combined(with: .opacity))
             }
             
-            // 2. 主球体
+            // 主球体
             ZStack {
-                // 🔥 新增：呼吸光晕层 (改为绿色)
                 if !isExpanded {
                     Circle()
-                        .fill(Color.green) // 🔥 绿色呼吸
+                        .fill(Color.green)
                         .frame(width: 56, height: 56)
-                        .scaleEffect(isBreathing ? 1.3 : 1.0) // 缩放范围 1.0 -> 1.3
-                        .opacity(isBreathing ? 0.0 : 0.3)     // 透明度范围 0.3 -> 0.0 (消散)
+                        .scaleEffect(isBreathing ? 1.3 : 1.0)
+                        .opacity(isBreathing ? 0.0 : 0.3)
                 }
                 
-                // 球体本体 (纯视觉组件，无 Button 干扰，无 "+" 号)
                 Circle()
                     .fill(
                         RadialGradient(
-                            // 🔥 核心修改：改为绿色系渐变
-                            gradient: Gradient(colors: [
-                                Color.green,              // 核心：鲜绿
-                                Color.mint.opacity(0.8)   // 边缘：薄荷绿 (带一点青色，过渡自然)
-                            ]),
+                            gradient: Gradient(colors: [Color.green, Color.mint.opacity(0.8)]),
                             center: .center,
                             startRadius: 5,
                             endRadius: 30
                         )
                     )
                     .frame(width: 56, height: 56)
-                    // 高光立体边框
                     .overlay(
-                        Circle()
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.5), .clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
+                        Circle().strokeBorder(
+                            LinearGradient(colors: [.white.opacity(0.5), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: 1
+                        )
                     )
-                    // 柔和的投影 (改为绿色阴影)
-                    .shadow(color: Color.green.opacity(0.4), radius: 8, x: 0, y: 5) // 🔥 绿色阴影
+                    .shadow(color: Color.green.opacity(0.4), radius: 8, x: 0, y: 5)
             }
-            .scaleEffect(isExpanded ? 0.9 : 1.0) // 展开时轻微缩小，增加锁定感
+            .scaleEffect(isExpanded ? 0.9 : 1.0)
         }
         .offset(offset)
-        // 🔥 核心手势逻辑 🔥
+        // 手势逻辑
         .gesture(
-            DragGesture(minimumDistance: 0) // minimumDistance: 0 确保按下即开始追踪
+            DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    // [状态 A] 菜单已展开：进入“选择模式”
                     if isExpanded {
+                        // [选择模式] 使用动态的 offset 进行距离判断
                         let currentDrag = value.translation
                         
-                        // 计算到 Camera 的距离
-                        let distToCamera = hypot(currentDrag.width - cameraOffset.width, currentDrag.height - cameraOffset.height)
-                        // 计算到 Photo 的距离
-                        let distToPhoto = hypot(currentDrag.width - photoOffset.width, currentDrag.height - photoOffset.height)
+                        // 获取当前的动态位置
+                        let camOff = self.cameraOffset
+                        let phoOff = self.photoOffset
                         
-                        // 判定高亮
+                        let distToCamera = hypot(currentDrag.width - camOff.width, currentDrag.height - camOff.height)
+                        let distToPhoto = hypot(currentDrag.width - phoOff.width, currentDrag.height - phoOff.height)
+                        
                         if distToCamera < triggerDistance {
                             if activeSelection != 1 {
-                                let generator = UIImpactFeedbackGenerator(style: .light)
-                                generator.impactOccurred()
+                                let generator = UIImpactFeedbackGenerator(style: .light); generator.impactOccurred()
                                 withAnimation(.spring()) { activeSelection = 1 }
                             }
                         } else if distToPhoto < triggerDistance {
                             if activeSelection != 2 {
-                                let generator = UIImpactFeedbackGenerator(style: .light)
-                                generator.impactOccurred()
+                                let generator = UIImpactFeedbackGenerator(style: .light); generator.impactOccurred()
                                 withAnimation(.spring()) { activeSelection = 2 }
                             }
                         } else {
-                            if activeSelection != nil {
-                                withAnimation(.spring()) { activeSelection = nil }
-                            }
+                            if activeSelection != nil { withAnimation(.spring()) { activeSelection = nil } }
                         }
-                    }
-                    // [状态 B] 菜单未展开：进入“移动模式”
-                    else {
-                        // 只有当位移足够大时，才更新位置 (防止点击时的抖动)
+                    } else {
+                        // [拖拽模式] 保持之前的边界限制逻辑
+                        let proposedHeight = dragStartOffset.height + value.translation.height
+                        
+                        let bottomPadding: CGFloat = 100
+                        let ballHeight: CGFloat = 56
+                        let navBarHeight: CGFloat = 44
+                        let tabBarHeight: CGFloat = 60
+                        
+                        let initialTopY = containerSize.height - bottomPadding - ballHeight
+                        let targetTopY = safeAreaInsets.top + navBarHeight
+                        let topLimit = targetTopY - initialTopY
+                        
+                        let initialBottomY = containerSize.height - bottomPadding
+                        let targetBottomY = containerSize.height - safeAreaInsets.bottom - tabBarHeight
+                        let bottomLimit = max(0, targetBottomY - initialBottomY)
+                        
+                        let constrainedHeight = min(max(proposedHeight, topLimit), bottomLimit)
+                        
                         offset = CGSize(
                             width: dragStartOffset.width + value.translation.width,
-                            height: dragStartOffset.height + value.translation.height
+                            height: constrainedHeight
                         )
                     }
                 }
                 .onEnded { value in
-                    // 1. 如果是展开状态：触发选择
                     if isExpanded {
-                        if activeSelection == 1 {
-                            onCameraTap()
-                        } else if activeSelection == 2 {
-                            onPhotoTap()
-                        }
-                        // 无论如何，松手后收起菜单
-                        withAnimation(.spring()) {
-                            isExpanded = false
-                            activeSelection = nil
-                        }
-                    }
-                    // 2. 如果是未展开状态
-                    else {
-                        // 判断是“点击”还是“拖拽”
-                        // 如果位移非常小，视为点击
+                        if activeSelection == 1 { onCameraTap() }
+                        else if activeSelection == 2 { onPhotoTap() }
+                        withAnimation(.spring()) { isExpanded = false; activeSelection = nil }
+                    } else {
                         if abs(value.translation.width) < 5 && abs(value.translation.height) < 5 {
                             onTap()
                         }
-                        // 否则视为拖拽结束，保存当前位置
                         dragStartOffset = offset
                     }
                 }
         )
-        // 长按手势：独立于拖拽，专门用于触发“展开”
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.4)
                 .onEnded { _ in
-                    // 触发展开
                     let generator = UIImpactFeedbackGenerator(style: .heavy)
                     generator.impactOccurred()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         isExpanded = true
-                        // 展开时，记录当前的偏移量，防止位置跳变
                         dragStartOffset = offset
                     }
                 }
         )
         .onAppear {
             dragStartOffset = offset
-            // 🔥 启动呼吸动画：无限循环，自动往复
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: false)) {
                 isBreathing = true
             }
         }
     }
     
-    // 子菜单气泡组件 (增加高亮状态)
     struct MenuBubble: View {
         let icon: String
         let color: Color
         let label: String
-        let isHighlighted: Bool // 高亮状态
+        let isHighlighted: Bool
         
         var body: some View {
             VStack(spacing: 4) {
                 Circle()
                     .fill(color)
-                    .frame(width: isHighlighted ? 60 : 48, height: isHighlighted ? 60 : 48) // 高亮放大
+                    .frame(width: isHighlighted ? 60 : 48, height: isHighlighted ? 60 : 48)
                     .shadow(color: color.opacity(0.3), radius: 5, x: 0, y: 3)
                     .overlay(
                         Image(systemName: icon)
@@ -405,7 +413,7 @@ struct FloatingBallMenu: View {
                     .cornerRadius(4)
                     .opacity(isHighlighted ? 1.0 : 0.8)
             }
-            .animation(.spring(), value: isHighlighted) // 增加弹性动画
+            .animation(.spring(), value: isHighlighted)
         }
     }
 }
