@@ -78,8 +78,8 @@ struct InspirationSearchView: View {
     var body: some View {
         ZStack {
             // 1. 底层：复用流动的弥散背景
+            // 如果这个背景组件导致性能问题，可以先注释掉测试
             MeshGradientBackground()
-                .onTapGesture { isFocused = false }
             
             VStack(spacing: 0) {
                 // 2. 顶部：自定义毛玻璃搜索栏
@@ -99,6 +99,7 @@ struct InspirationSearchView: View {
                                 tags: topTags,
                                 onTagSelect: { tag in
                                     searchText = tag
+                                    // 点击标签后也可以收起键盘
                                     isFocused = false
                                 },
                                 selectedFilter: $selectedFilter
@@ -119,7 +120,11 @@ struct InspirationSearchView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            isFocused = true
+            // 🔥🔥🔥 核心修复：延迟激活键盘 🔥🔥🔥
+            // 必须等待页面转场动画（约0.35s）完成后再弹出键盘，否则会导致 UI 卡死
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                isFocused = true
+            }
         }
     }
 }
@@ -139,7 +144,7 @@ struct CustomSearchBar: View {
                     .font(.system(size: 18))
                 
                 TextField("搜索记忆、标签...", text: $text)
-                    .focused(isFocused)
+                    .focused(isFocused) // 绑定焦点状态
                     .font(.system(size: 17))
                     .submitLabel(.search)
                 
@@ -158,6 +163,8 @@ struct CustomSearchBar: View {
             
             // 取消按钮
             Button("取消") {
+                // 取消时先收键盘，再退页面，体验更流畅
+                isFocused.wrappedValue = false
                 onCancel()
             }
             .foregroundColor(.primary)
@@ -183,8 +190,7 @@ struct LandingContentView: View {
                         .foregroundColor(.secondary)
                         .padding(.horizontal)
                     
-                    // 复用 FlowLayout (假设已在 InspirationView 中定义并可访问)
-                    // 如果无法访问，请将 InspirationView 中的 FlowLayout 移至公共文件，或在此处重新定义
+                    // 复用 FlowLayout
                     FlowLayout(spacing: 8) {
                         ForEach(tags, id: \.self) { tag in
                             Button(action: { onTagSelect(tag) }) {
@@ -287,7 +293,7 @@ struct ResultsContentView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // 顶部筛选条 (允许用户在结果页切换筛选)
+            // 顶部筛选条
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(InspirationSearchView.SearchFilter.allCases, id: \.self) { filter in
@@ -317,12 +323,10 @@ struct ResultsContentView: View {
             } else {
                 LazyVStack(spacing: 16) {
                     ForEach(items) { item in
-                        // 使用带高亮参数的卡片
-                        // 注意：这里需要 InspirationView 中的 InspirationCardView 支持 highlightText 参数
                         InspirationCardView(
                             item: item,
-                            highlightText: highlightText, // 🔥 传入高亮词
-                            onMenuTap: { _, _ in }, // 搜索页暂不支持修改/删除，简化交互
+                            highlightText: highlightText,
+                            onMenuTap: { _, _ in },
                             onTagTap: nil,
                             onImageTap: nil
                         )
