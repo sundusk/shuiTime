@@ -90,11 +90,7 @@ struct LivePhotoPreviewSheet: View {
                                 }
                             }) {
                                 HStack(spacing: 6) {
-                                    Image(
-                                        systemName: isLiveEnabled
-                                            ? "checkmark.circle.fill" : "circle"
-                                    )
-                                    .font(.system(size: 18))
+                                    // 🔥 移除勾选图标，仅保留实况图标和文字
                                     Image(systemName: "livephoto")
                                         .font(.system(size: 16))
                                     Text("实况")
@@ -106,7 +102,7 @@ struct LivePhotoPreviewSheet: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
                                         .strokeBorder(
-                                            isLiveEnabled ? Color.green : Color.gray.opacity(0.5),
+                                            isLiveEnabled ? Color.green : Color.white,  // 未选中时也用白色描边，或灰色，保持一致
                                             lineWidth: 1)
                                 )
                             }
