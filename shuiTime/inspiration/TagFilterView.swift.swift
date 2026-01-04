@@ -5,46 +5,46 @@
 //  Created by 强风吹拂 on 2025/12/19.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct TagFilterView: View {
     let tagName: String
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     // 查询所有数据
     @Query(sort: \TimelineItem.timestamp, order: .reverse)
     private var allItems: [TimelineItem]
-    
+
     var filteredItems: [TimelineItem] {
         allItems.filter { item in
             item.content.contains(tagName) && item.type == "inspiration"
         }
     }
-    
+
     // 状态管理
     @State private var showNewInputSheet = false
     @State private var itemToEdit: TimelineItem?
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
-    
+
     // 菜单状态
     @State private var showCustomMenu = false
     @State private var menuPosition: CGPoint = .zero
     @State private var itemForMenu: TimelineItem?
-    
+
     // 标签跳转
     @State private var selectedTag: String?
-    
+
     // 全屏图片状态
     @State private var fullScreenImage: FullScreenImage?
-    
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                
+
                 if filteredItems.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "tag.slash")
@@ -63,15 +63,20 @@ struct TagFilterView: View {
                                     onMenuTap: { selectedItem, anchorPoint in
                                         self.itemForMenu = selectedItem
                                         self.menuPosition = anchorPoint
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7))
+                                        {
                                             self.showCustomMenu = true
                                         }
                                     },
                                     onTagTap: { tag in
                                         if tag != tagName { self.selectedTag = tag }
                                     },
-                                    onImageTap: { image in
-                                        self.fullScreenImage = FullScreenImage(image: image)
+                                    onImageTap: { item in
+                                        self.fullScreenImage = FullScreenImage(
+                                            image: UIImage(data: item.imageData!)!,
+                                            isLivePhoto: item.isLivePhoto,
+                                            videoData: item.livePhotoVideoData
+                                        )
                                     }
                                 )
                             }
@@ -81,7 +86,7 @@ struct TagFilterView: View {
                     }
                     .coordinateSpace(name: "InspirationScrollSpace")
                 }
-                
+
                 // 悬浮加号按钮
                 VStack {
                     Spacer()
@@ -100,30 +105,42 @@ struct TagFilterView: View {
                         .padding(.bottom, 30)
                     }
                 }
-                
+
                 // 浮层菜单
                 if showCustomMenu {
                     Color.black.opacity(0.01).ignoresSafeArea()
                         .onTapGesture { withAnimation { showCustomMenu = false } }
-                    
+
                     VStack(spacing: 0) {
                         Button(action: {
                             showCustomMenu = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { itemToEdit = itemForMenu }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                itemToEdit = itemForMenu
+                            }
                         }) {
-                            HStack { Image(systemName: "pencil"); Text("修改"); Spacer() }
-                                .padding().foregroundColor(.primary)
+                            HStack {
+                                Image(systemName: "pencil")
+                                Text("修改")
+                                Spacer()
+                            }
+                            .padding().foregroundColor(.primary)
                         }
                         Divider()
                         Button(action: {
                             showCustomMenu = false
                             if let item = itemForMenu {
                                 itemToDelete = item
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showDeleteAlert = true }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    showDeleteAlert = true
+                                }
                             }
                         }) {
-                            HStack { Image(systemName: "trash"); Text("删除"); Spacer() }
-                                .padding().foregroundColor(.red)
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("删除")
+                                Spacer()
+                            }
+                            .padding().foregroundColor(.red)
                         }
                     }
                     // 🔥 菜单背景色优化
@@ -154,7 +171,7 @@ struct TagFilterView: View {
                 TagFilterView(tagName: tag)
             }
             .fullScreenCover(item: $fullScreenImage) { wrapper in
-                FullScreenPhotoView(image: wrapper.image)
+                FullScreenPhotoView(imageEntity: wrapper)
             }
             .sheet(isPresented: $showNewInputSheet) {
                 InspirationInputView(itemToEdit: nil, initialContent: tagName)
@@ -169,10 +186,12 @@ struct TagFilterView: View {
                         deleteItem(item)
                     }
                 }
-            } message: { Text("删除后将无法恢复。") }
+            } message: {
+                Text("删除后将无法恢复。")
+            }
         }
     }
-    
+
     // 删除辅助函数
     private func deleteItem(_ item: TimelineItem) {
         withAnimation {

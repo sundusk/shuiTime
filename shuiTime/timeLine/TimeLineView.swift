@@ -5,6 +5,7 @@
 //  Created by 强风吹拂 on 2025/12/11.
 //
 
+import AVKit
 import PhotosUI
 import SwiftData
 import SwiftUI
@@ -55,8 +56,8 @@ struct TimeLineView: View {
                     // 2. 列表层
                     TimelineListView(
                         date: selectedDate,
-                        onImageTap: { image in
-                            fullScreenImage = FullScreenImage(image: image)
+                        onImageTap: { imageWrapper in
+                            fullScreenImage = imageWrapper
                         }
                     )
                     .onTapGesture { resetStates() }
@@ -203,7 +204,7 @@ struct TimeLineView: View {
                 )
             }
             .fullScreenCover(item: $fullScreenImage) { wrapper in
-                FullScreenPhotoView(image: wrapper.image)
+                FullScreenPhotoView(imageEntity: wrapper)
             }
             // 🔥 备份选项 Sheet
             .sheet(isPresented: $showBackupSheet) {
@@ -693,9 +694,9 @@ struct TimelineListView: View {
     @State private var itemToEdit: TimelineItem?
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
-    var onImageTap: (UIImage) -> Void
+    var onImageTap: (FullScreenImage) -> Void
 
-    init(date: Date, onImageTap: @escaping (UIImage) -> Void) {
+    init(date: Date, onImageTap: @escaping (FullScreenImage) -> Void) {
         self.onImageTap = onImageTap
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -712,35 +713,40 @@ struct TimelineListView: View {
         if items.isEmpty {
             EmptyStateView().frame(maxWidth: .infinity, maxHeight: .infinity).padding(.bottom, 80)
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    Spacer().frame(height: 20)
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        TimelineRowView(
-                            item: item, isLast: index == items.count - 1, onImageTap: onImageTap
-                        )
-                        .contextMenu {
-                            // 🔥 核心修改：只有“非瞬影”类型才允许修改
-                            if item.type != "moment" {
-                                Button {
-                                    itemToEdit = item
-                                } label: {
-                                    Label("修改", systemImage: "pencil")
-                                }
-                            }
-                            // 删除功能对所有类型开放
-                            Button(role: .destructive) {
-                                itemToDelete = item
-                                showDeleteAlert = true
+            List {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    TimelineRowView(
+                        item: item, isLast: index == items.count - 1, onImageTap: onImageTap
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .swipeActions(edge: .trailing) {
+                        // 删除功能
+                        Button(role: .destructive) {
+                            itemToDelete = item
+                            showDeleteAlert = true
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+
+                        // 修改功能 (非瞬影)
+                        if item.type != "moment" {
+                            Button {
+                                itemToEdit = item
                             } label: {
-                                Label("删除", systemImage: "trash")
+                                Label("修改", systemImage: "pencil")
                             }
+                            .tint(.blue)
                         }
                     }
-                    Spacer().frame(height: 100)
                 }
-                .padding(.horizontal)
+
+                // 底部占位
+                Color.clear.frame(height: 100)
+                    .listRowSeparator(.hidden)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)  // 适配 iOS 16+ 背景
             .scrollClipDisabled(false)
             .sheet(item: $itemToEdit) { item in EditTimelineView(item: item) }
             .alert("确认删除?", isPresented: $showDeleteAlert) {
@@ -771,10 +777,15 @@ struct TimelineListView: View {
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
-    var onImageTap: ((UIImage) -> Void)?
+    var onImageTap: ((FullScreenImage) -> Void)?
 
     // 🔥 修复核心：引入本地状态缓存图片，防止删除动画时访问已销毁的数据库对象
     @State private var cachedImage: UIImage?
+
+    // 实况播放相关
+    @State private var player: AVPlayer?
+    @State private var isPlayingLivePhoto = false
+    @State private var gradientRotation: Double = 0  // 流光动画旋转角度
 
     // 判断类型
     private var isMoment: Bool { item.type == "moment" }
@@ -865,16 +876,79 @@ struct TimelineRowView: View {
                                 .frame(height: 220)
                                 .frame(maxWidth: .infinity)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                                // 实况播放覆盖层 (显示在图片之上，图标之下)
+                                .overlay {
+                                    if isPlayingLivePhoto, let player = player {
+                                        VideoPlayer(player: player)
+                                            .disabled(true)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    }
+                                }
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(Color.blue.opacity(0.8), lineWidth: 2)
+                                        .strokeBorder(
+                                            isPlayingLivePhoto
+                                                ?  // 播放时：流光渐变边框
+                                                AnyShapeStyle(
+                                                    AngularGradient(
+                                                        gradient: Gradient(colors: [
+                                                            .cyan, .blue, .purple, .cyan,
+                                                        ]),
+                                                        center: .center,
+                                                        startAngle: .degrees(gradientRotation),
+                                                        endAngle: .degrees(gradientRotation + 360)
+                                                    )
+                                                )
+                                                :  // 静态时：蓝色实线
+                                                AnyShapeStyle(Color.blue.opacity(0.8)),
+                                            lineWidth: isPlayingLivePhoto ? 4 : 2  // 播放时加粗
+                                        )
                                 )
-                                .onTapGesture { onImageTap?(uiImage) }
+                                // 动画触发 logic
+                                .onChange(of: isPlayingLivePhoto) { oldValue, newValue in
+                                    if newValue {
+                                        withAnimation(
+                                            .linear(duration: 2).repeatForever(autoreverses: false)
+                                        ) {
+                                            gradientRotation = 360
+                                        }
+                                    } else {
+                                        withAnimation(.default) {
+                                            gradientRotation = 0
+                                        }
+                                    }
+                                }
+                                // 右下角图标
                                 .overlay(alignment: .bottomTrailing) {
-                                    Image(systemName: "camera.aperture")
-                                        .foregroundColor(.white.opacity(0.9))
-                                        .padding(8)
-                                        .shadow(radius: 2)
+                                    Image(
+                                        systemName: item.isLivePhoto
+                                            ? "livephoto" : "camera.aperture"
+                                    )
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(8)
+                                    .shadow(radius: 2)
+                                }
+                                // 手势逻辑
+                                .onLongPressGesture(
+                                    minimumDuration: 60.0,
+                                    pressing: { isPressing in
+                                        if isPressing {
+                                            startPlayingLivePhoto()
+                                        } else {
+                                            stopPlayingLivePhoto()
+                                        }
+                                    }, perform: {}
+                                )
+                                .onTapGesture {
+                                    if !isPlayingLivePhoto {
+                                        onImageTap?(
+                                            FullScreenImage(
+                                                image: uiImage,
+                                                isLivePhoto: item.isLivePhoto,
+                                                videoData: item.livePhotoVideoData
+                                            )
+                                        )
+                                    }
                                 }
                         }
                         // (B) 普通样式
@@ -886,7 +960,15 @@ struct TimelineRowView: View {
                                         maxWidth: .infinity
                                     )
                                     .cornerRadius(8).clipped()
-                                    .onTapGesture { onImageTap?(uiImage) }
+                                    .onTapGesture {
+                                        onImageTap?(
+                                            FullScreenImage(
+                                                image: uiImage,
+                                                isLivePhoto: item.isLivePhoto,
+                                                videoData: item.livePhotoVideoData
+                                            )
+                                        )
+                                    }
                             }
 
                             if !cleanContent.isEmpty {
@@ -946,6 +1028,49 @@ struct TimelineRowView: View {
         } else {
             self.cachedImage = nil
         }
+    }
+
+    // 开始播放实况
+    private func startPlayingLivePhoto() {
+        guard item.isLivePhoto, !isPlayingLivePhoto else { return }
+        guard let videoData = item.livePhotoVideoData else { return }
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".mov")
+
+        do {
+            try videoData.write(to: tempURL)
+            let newPlayer = AVPlayer(url: tempURL)
+            newPlayer.isMuted = false
+            newPlayer.actionAtItemEnd = .none
+
+            // 循环播放逻辑
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: newPlayer.currentItem,
+                queue: .main
+            ) { _ in
+                newPlayer.seek(to: .zero)
+                newPlayer.play()
+            }
+
+            self.player = newPlayer
+            self.isPlayingLivePhoto = true
+
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+
+            newPlayer.play()
+        } catch {
+            print("播放实况失败: \(error)")
+        }
+    }
+
+    // 停止播放实况
+    private func stopPlayingLivePhoto() {
+        player?.pause()
+        player = nil
+        isPlayingLivePhoto = false
     }
 }
 
