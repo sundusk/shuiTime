@@ -50,7 +50,7 @@ struct TimeLineView: View {
             GeometryReader { geo in
                 ZStack {
                     // 1. 背景层
-                    Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                    Color(uiColor: .systemBackground).ignoresSafeArea()
                         .onTapGesture { resetStates() }
 
                     // 2. 列表层
@@ -271,11 +271,27 @@ struct TimeLineView: View {
         }
     }
 
+    // 🔥 核心修复：使用直接查询获取准确数量，避免视图刷新延迟导致限额失效
+    private func getTodayMomentsCount() -> Int {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: Date())
+        // 构造结束时间 (第二天0点)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return 0 }
+
+        let descriptor = FetchDescriptor<TimelineItem>(
+            predicate: #Predicate { item in
+                item.timestamp >= start && item.timestamp < end && item.type == "moment"
+            }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? todayMoments.count
+    }
+
     private func handleImageSelected() {
         guard tempImage != nil else { return }
 
         // 检查额度
-        if todayMoments.count >= 3 {
+        // 检查额度 (修正版)
+        if getTodayMomentsCount() >= 3 {
             withAnimation { showReplaceSheet = true }
         } else {
             saveNewMoment()
@@ -323,8 +339,8 @@ struct TimeLineView: View {
         tempImage = image
         tempLivePhotoData = (videoData, isLive)
 
-        // 检查今天是否已有3张瞬影
-        if todayMoments.count >= 3 {
+        // 检查今天是否已有3张瞬影 (修正版)
+        if getTodayMomentsCount() >= 3 {
             // 需要替换
             withAnimation { showReplaceSheet = true }
         } else {
