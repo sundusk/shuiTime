@@ -22,6 +22,8 @@ struct BackupItem: Codable {
     let iconName: String
     let type: String
     let imageBase64: String?
+    let isLivePhoto: Bool?  // 🔥 Live Photo 标记（可选，兼容旧数据）
+    let livePhotoVideoBase64: String?  // 🔥 Live Photo 视频数据
 }
 
 // MARK: - 备份管理器
@@ -47,13 +49,21 @@ class BackupManager {
                 imageBase64 = imageData.base64EncodedString()
             }
 
+            // 🔥 Live Photo 视频转 Base64
+            var liveVideoBase64: String? = nil
+            if let videoData = item.livePhotoVideoData {
+                liveVideoBase64 = videoData.base64EncodedString()
+            }
+
             return BackupItem(
                 id: item.id.uuidString,
                 timestamp: timestampString,
                 content: item.content,
                 iconName: item.iconName,
                 type: item.type,
-                imageBase64: imageBase64
+                imageBase64: imageBase64,
+                isLivePhoto: item.isLivePhoto,
+                livePhotoVideoBase64: liveVideoBase64
             )
         }
 
@@ -139,13 +149,21 @@ class BackupManager {
                 imageData = Data(base64Encoded: base64String)
             }
 
+            // 🔥 解析 Live Photo 视频数据
+            var liveVideoData: Data? = nil
+            if let base64String = backupItem.livePhotoVideoBase64 {
+                liveVideoData = Data(base64Encoded: base64String)
+            }
+
             // 创建新的 TimelineItem
             let newItem = TimelineItem(
                 content: backupItem.content,
                 iconName: backupItem.iconName,
                 timestamp: timestamp,
                 imageData: imageData,
-                type: backupItem.type
+                type: backupItem.type,
+                isLivePhoto: backupItem.isLivePhoto ?? false,
+                livePhotoVideoData: liveVideoData
             )
 
             // 注意：这里重新生成 UUID，而不是使用备份中的 ID

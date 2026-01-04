@@ -28,6 +28,10 @@ struct TimeLineView: View {
     @State private var showReplaceSheet = false  // 替换弹窗
     @State private var isFabExpanded = false  // 悬浮球菜单展开状态
 
+    // 🔥 Live Photo 支持
+    @State private var selectedAsset: LivePhotoAsset?  // 选中的资源
+    @State private var tempLivePhotoData: (videoData: Data?, isLive: Bool)?  // 临时存储用于替换流程
+
     // 🔥 备份功能状态
     @State private var showBackupSheet = false
     @State private var showFilePicker = false
@@ -180,9 +184,23 @@ struct TimeLineView: View {
             .sheet(isPresented: $showCamera, onDismiss: handleImageSelected) {
                 ImagePicker(selectedImage: $tempImage, sourceType: .camera)
             }
-            // 相册
-            .sheet(isPresented: $showPhotoLibrary, onDismiss: handleImageSelected) {
-                ImagePicker(selectedImage: $tempImage, sourceType: .photoLibrary)
+            // 相册 - 使用 PHPickerView 支持 Live Photo
+            .sheet(isPresented: $showPhotoLibrary) {
+                PHPickerView(selectedAsset: $selectedAsset) {
+                    // 选择完成，selectedAsset 有值时会自动触发 fullScreenCover
+                }
+            }
+            // 🔥 Live Photo 预览
+            .fullScreenCover(item: $selectedAsset) { asset in
+                LivePhotoPreviewSheet(
+                    asset: asset,
+                    onConfirm: { image, videoData, isLive in
+                        handleLivePhotoConfirm(image: image, videoData: videoData, isLive: isLive)
+                    },
+                    onCancel: {
+                        selectedAsset = nil
+                    }
+                )
             }
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(image: wrapper.image)
@@ -265,17 +283,24 @@ struct TimeLineView: View {
 
     private func saveNewMoment() {
         guard let image = tempImage else { return }
+
+        // 获取 Live Photo 数据（如果有）
+        let liveData = tempLivePhotoData
+
         let newItem = TimelineItem(
             content: "",  // 瞬影不需要默认文字
             iconName: "camera.aperture",
             timestamp: Date(),
             imageData: image.jpegData(compressionQuality: 0.7),
-            type: "moment"  // 🔥 关键类型标识
+            type: "moment",  // 🔥 关键类型标识
+            isLivePhoto: liveData?.isLive ?? false,
+            livePhotoVideoData: liveData?.videoData
         )
         withAnimation {
             modelContext.insert(newItem)
         }
         tempImage = nil
+        tempLivePhotoData = nil
     }
 
     private func replaceMoment(oldItem: TimelineItem) {
@@ -285,6 +310,26 @@ struct TimeLineView: View {
         saveNewMoment()
         // 3. 关闭弹窗
         showReplaceSheet = false
+    }
+
+    // MARK: - Live Photo 处理
+
+    /// 处理 Live Photo 预览确认
+    private func handleLivePhotoConfirm(image: UIImage, videoData: Data?, isLive: Bool) {
+        selectedAsset = nil
+
+        // 存储图片和 Live 数据
+        tempImage = image
+        tempLivePhotoData = (videoData, isLive)
+
+        // 检查今天是否已有3张瞬影
+        if todayMoments.count >= 3 {
+            // 需要替换
+            withAnimation { showReplaceSheet = true }
+        } else {
+            // 直接保存
+            saveNewMoment()
+        }
     }
 
     // MARK: - 备份恢复逻辑
