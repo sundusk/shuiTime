@@ -33,8 +33,8 @@ struct InspirationView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
-                // 1. 背景层 (移除这里的 navigationDestination)
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                // 1. 背景层 - 使用弥散渐变背景（与时间线、时光回顾页面统一）
+                MeshGradientBackground()
 
                 if items.isEmpty {
                     // --- 空状态 ---
