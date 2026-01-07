@@ -49,8 +49,8 @@ struct TimeLineView: View {
             // 🔥 1. 新增：GeometryReader 用于获取屏幕尺寸和安全区域
             GeometryReader { geo in
                 ZStack {
-                    // 1. 背景层
-                    Color(uiColor: .systemBackground).ignoresSafeArea()
+                    // 1. 背景层 - 使用弥散渐变背景
+                    MeshGradientBackground()
                         .onTapGesture { resetStates() }
 
                     // 2. 列表层
@@ -736,6 +736,7 @@ struct TimelineListView: View {
                     )
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowBackground(Color.clear)  // 🔥 清除行背景，显示弥散渐变
                     .swipeActions(edge: .trailing) {
                         // 删除功能
                         Button(role: .destructive) {
@@ -760,6 +761,7 @@ struct TimelineListView: View {
                 // 底部占位
                 Color.clear.frame(height: 100)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)  // 🔥 清除底部占位行背景
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)  // 适配 iOS 16+ 背景
@@ -1260,7 +1262,7 @@ struct InputBarView: View {
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "calendar.badge.clock").font(.system(size: 80)).foregroundColor(
+            Image(systemName: "calendar.day.timeline.left").font(.system(size: 80)).foregroundColor(
                 .gray.opacity(0.3))
             Text("这一天没有记录").font(.title2).foregroundColor(.gray)
         }
