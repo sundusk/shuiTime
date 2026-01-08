@@ -893,87 +893,91 @@ struct TimelineRowView: View {
                     // 内容容器
                     VStack(alignment: .leading, spacing: 8) {
 
-                        // (A) 🔥 瞬影样式：使用 cachedImage
+                        // (A) 🔥 瞬影样式：使用 GeometryReader 确保边框尺寸固定一致
                         if isMoment, let uiImage = cachedImage {
-                            Image(uiImage: uiImage)
-                                .resizable().scaledToFill()
-                                .frame(height: 220)
-                                .frame(maxWidth: .infinity)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                // 实况播放覆盖层 (显示在图片之上，图标之下)
-                                .overlay {
-                                    if isPlayingLivePhoto, let player = player {
-                                        VideoPlayer(player: player)
-                                            .disabled(true)
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    }
+                            GeometryReader { geo in
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .clipped()
+                            }
+                            .frame(height: 220)  // 🔥 固定高度
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            // 实况播放覆盖层 (显示在图片之上，图标之下)
+                            .overlay {
+                                if isPlayingLivePhoto, let player = player {
+                                    VideoPlayer(player: player)
+                                        .disabled(true)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(
-                                            isPlayingLivePhoto
-                                                ?  // 播放时：流光渐变边框
-                                                AnyShapeStyle(
-                                                    AngularGradient(
-                                                        gradient: Gradient(colors: [
-                                                            .cyan, .blue, .purple, .cyan,
-                                                        ]),
-                                                        center: .center,
-                                                        startAngle: .degrees(gradientRotation),
-                                                        endAngle: .degrees(gradientRotation + 360)
-                                                    )
+                            }
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(
+                                        isPlayingLivePhoto
+                                            ?  // 播放时：流光渐变边框
+                                            AnyShapeStyle(
+                                                AngularGradient(
+                                                    gradient: Gradient(colors: [
+                                                        .cyan, .blue, .purple, .cyan,
+                                                    ]),
+                                                    center: .center,
+                                                    startAngle: .degrees(gradientRotation),
+                                                    endAngle: .degrees(gradientRotation + 360)
                                                 )
-                                                :  // 静态时：蓝色实线
-                                                AnyShapeStyle(Color.blue.opacity(0.8)),
-                                            lineWidth: isPlayingLivePhoto ? 4 : 2  // 播放时加粗
-                                        )
-                                )
-                                // 动画触发 logic
-                                .onChange(of: isPlayingLivePhoto) { oldValue, newValue in
-                                    if newValue {
-                                        withAnimation(
-                                            .linear(duration: 2).repeatForever(autoreverses: false)
-                                        ) {
-                                            gradientRotation = 360
-                                        }
-                                    } else {
-                                        withAnimation(.default) {
-                                            gradientRotation = 0
-                                        }
-                                    }
-                                }
-                                // 右下角图标
-                                .overlay(alignment: .bottomTrailing) {
-                                    Image(
-                                        systemName: cachedIsLivePhoto
-                                            ? "livephoto" : "camera.aperture"
-                                    )
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .padding(8)
-                                    .shadow(radius: 2)
-                                }
-                                // 手势逻辑
-                                .onLongPressGesture(
-                                    minimumDuration: 60.0,
-                                    pressing: { isPressing in
-                                        if isPressing {
-                                            startPlayingLivePhoto()
-                                        } else {
-                                            stopPlayingLivePhoto()
-                                        }
-                                    }, perform: {}
-                                )
-                                .onTapGesture {
-                                    if !isPlayingLivePhoto {
-                                        onImageTap?(
-                                            FullScreenImage(
-                                                image: uiImage,
-                                                isLivePhoto: cachedIsLivePhoto,
-                                                videoData: cachedVideoData
                                             )
-                                        )
+                                            :  // 静态时：蓝色实线
+                                            AnyShapeStyle(Color.blue.opacity(0.8)),
+                                        lineWidth: isPlayingLivePhoto ? 4 : 2  // 播放时加粗
+                                    )
+                            )
+                            // 动画触发 logic
+                            .onChange(of: isPlayingLivePhoto) { oldValue, newValue in
+                                if newValue {
+                                    withAnimation(
+                                        .linear(duration: 2).repeatForever(autoreverses: false)
+                                    ) {
+                                        gradientRotation = 360
+                                    }
+                                } else {
+                                    withAnimation(.default) {
+                                        gradientRotation = 0
                                     }
                                 }
+                            }
+                            // 右下角图标
+                            .overlay(alignment: .bottomTrailing) {
+                                Image(
+                                    systemName: cachedIsLivePhoto
+                                        ? "livephoto" : "camera.aperture"
+                                )
+                                .foregroundColor(.white.opacity(0.9))
+                                .padding(8)
+                                .shadow(radius: 2)
+                            }
+                            // 手势逻辑
+                            .onLongPressGesture(
+                                minimumDuration: 60.0,
+                                pressing: { isPressing in
+                                    if isPressing {
+                                        startPlayingLivePhoto()
+                                    } else {
+                                        stopPlayingLivePhoto()
+                                    }
+                                }, perform: {}
+                            )
+                            .onTapGesture {
+                                if !isPlayingLivePhoto {
+                                    onImageTap?(
+                                        FullScreenImage(
+                                            image: uiImage,
+                                            isLivePhoto: cachedIsLivePhoto,
+                                            videoData: cachedVideoData
+                                        )
+                                    )
+                                }
+                            }
                         }
                         // (B) 普通样式
                         else {
