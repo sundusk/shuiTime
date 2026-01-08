@@ -797,41 +797,47 @@ struct TimelineRowView: View {
     let isLast: Bool
     var onImageTap: ((FullScreenImage) -> Void)?
 
-    // 🔥 修复核心：引入本地状态缓存图片，防止删除动画时访问已销毁的数据库对象
+    // 🔥 修复核心：缓存所有需要访问的属性，防止删除动画时访问已销毁的数据库对象
     @State private var cachedImage: UIImage?
+    @State private var cachedTimestamp: Date = Date()
+    @State private var cachedType: String = ""
+    @State private var cachedContent: String = ""
+    @State private var cachedIsLivePhoto: Bool = false
+    @State private var cachedVideoData: Data?
+    @State private var isDataLoaded: Bool = false
 
     // 实况播放相关
     @State private var player: AVPlayer?
     @State private var isPlayingLivePhoto = false
     @State private var gradientRotation: Double = 0  // 流光动画旋转角度
 
-    // 判断类型
-    private var isMoment: Bool { item.type == "moment" }
-    private var isInspiration: Bool { item.type == "inspiration" }
+    // 🔥 使用缓存的类型判断
+    private var isMoment: Bool { cachedType == "moment" }
+    private var isInspiration: Bool { cachedType == "inspiration" }
 
     private var tags: [String] {
         guard isInspiration else { return [] }
-        return item.content.split(separator: " ")
+        return cachedContent.split(separator: " ")
             .map { String($0) }
             .filter { $0.hasPrefix("#") && $0.count > 1 }
     }
 
     private var cleanContent: String {
         if isMoment { return "" }
-        guard isInspiration else { return item.content }
+        guard isInspiration else { return cachedContent }
         let pattern = "#[^\\s]+"
         let regex = try? NSRegularExpression(pattern: pattern)
         let cleaned =
             regex?.stringByReplacingMatches(
-                in: item.content, options: [],
-                range: NSRange(location: 0, length: item.content.utf16.count), withTemplate: "")
-            ?? item.content
+                in: cachedContent, options: [],
+                range: NSRange(location: 0, length: cachedContent.utf16.count), withTemplate: "")
+            ?? cachedContent
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
-        // 🔥 安全检查：如果对象已删除且无缓存，直接返回空视图，避免崩溃
-        if item.isDeleted && cachedImage == nil {
+        // 🔥 安全检查：如果对象已删除且数据未加载，直接返回空视图，避免崩溃
+        if item.isDeleted && !isDataLoaded {
             return AnyView(EmptyView())
         }
 
@@ -872,7 +878,7 @@ struct TimelineRowView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     // 时间戳
                     HStack {
-                        Text(item.timestamp.formatted(date: .omitted, time: .shortened))
+                        Text(cachedTimestamp.formatted(date: .omitted, time: .shortened))
                             .font(.caption).foregroundColor(.secondary)
 
                         if isMoment {
@@ -939,7 +945,7 @@ struct TimelineRowView: View {
                                 // 右下角图标
                                 .overlay(alignment: .bottomTrailing) {
                                     Image(
-                                        systemName: item.isLivePhoto
+                                        systemName: cachedIsLivePhoto
                                             ? "livephoto" : "camera.aperture"
                                     )
                                     .foregroundColor(.white.opacity(0.9))
@@ -962,8 +968,8 @@ struct TimelineRowView: View {
                                         onImageTap?(
                                             FullScreenImage(
                                                 image: uiImage,
-                                                isLivePhoto: item.isLivePhoto,
-                                                videoData: item.livePhotoVideoData
+                                                isLivePhoto: cachedIsLivePhoto,
+                                                videoData: cachedVideoData
                                             )
                                         )
                                     }
@@ -982,8 +988,8 @@ struct TimelineRowView: View {
                                         onImageTap?(
                                             FullScreenImage(
                                                 image: uiImage,
-                                                isLivePhoto: item.isLivePhoto,
-                                                videoData: item.livePhotoVideoData
+                                                isLivePhoto: cachedIsLivePhoto,
+                                                videoData: cachedVideoData
                                             )
                                         )
                                     }
@@ -1031,27 +1037,39 @@ struct TimelineRowView: View {
             // 🔥 核心逻辑：加载数据
             .onAppear { loadImage() }
             // 监听数据变更（针对编辑操作）
-            .onChange(of: item.imageData) { _, _ in loadImage() }
+            // 🔥 修复: 在 onChange 回调中也需检查 isDeleted，防止删除动画时访问已分离数据
+            .onChange(of: item.imageData) { _, _ in
+                if !item.isDeleted { loadImage() }
+            }
         )
     }
 
-    // 🔥 安全加载图片方法
+    // 🔥 安全加载所有属性方法
     private func loadImage() {
         // 如果对象已经被删除，不要去访问它的属性，直接退出
         if item.isDeleted { return }
 
-        // 安全读取 data
+        // 缓存所有必要属性
+        cachedTimestamp = item.timestamp
+        cachedType = item.type
+        cachedContent = item.content
+        cachedIsLivePhoto = item.isLivePhoto
+        cachedVideoData = item.livePhotoVideoData
+        
+        // 安全读取图片 data
         if let data = item.imageData, let image = UIImage(data: data) {
             self.cachedImage = image
         } else {
             self.cachedImage = nil
         }
+        
+        isDataLoaded = true
     }
 
     // 开始播放实况
     private func startPlayingLivePhoto() {
-        guard item.isLivePhoto, !isPlayingLivePhoto else { return }
-        guard let videoData = item.livePhotoVideoData else { return }
+        guard cachedIsLivePhoto, !isPlayingLivePhoto else { return }
+        guard let videoData = cachedVideoData else { return }
 
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".mov")
