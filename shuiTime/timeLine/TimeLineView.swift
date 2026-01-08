@@ -17,6 +17,7 @@ struct TimeLineView: View {
 
     // 日期与状态管理
     @State private var selectedDate: Date = Date()
+    @State private var currentMonth: Date = Date()  // 🔥 日历当前显示的月份
     @State private var showCalendar: Bool = false
     @State private var fullScreenImage: FullScreenImage?
     @State private var isInputExpanded: Bool = false
@@ -174,12 +175,14 @@ struct TimeLineView: View {
                 }
             }
             .sheet(isPresented: $showCalendar) {
-                VStack {
-                    DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .padding()
-                        .presentationDetents([.medium])
-                }
+                // 🔥 使用自定义日历组件，支持蓝点标记
+                TimelineCalendarSheet(
+                    currentMonth: $currentMonth,
+                    selectedDate: $selectedDate,
+                    recordedDates: getRecordedDates(),
+                    onDismiss: { showCalendar = false }
+                )
+                .presentationDetents([.medium, .large])
             }
             // 相机
             .sheet(isPresented: $showCamera, onDismiss: handleImageSelected) {
@@ -260,6 +263,14 @@ struct TimeLineView: View {
         formatter.dateFormat = "YYYY年MM月dd日"
         if Calendar.current.isDateInToday(date) { return "今日" }
         return formatter.string(from: date)
+    }
+    
+    // 🔥 获取有记录的日期集合，用于日历蓝点标记
+    private func getRecordedDates() -> Set<String> {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dates = allItems.map { formatter.string(from: $0.timestamp) }
+        return Set(dates)
     }
 
     // --- 瞬影核心逻辑 ---
@@ -1312,3 +1323,155 @@ struct RoundedCorner: Shape {
         return Path(path.cgPath)
     }
 }
+
+// MARK: - 🔥 时间线日历组件（带蓝点标记）
+struct TimelineCalendarSheet: View {
+    @Binding var currentMonth: Date
+    @Binding var selectedDate: Date
+    let recordedDates: Set<String>
+    var onDismiss: () -> Void
+    
+    private let calendar = Calendar.current
+    private let weekDays = ["日", "一", "二", "三", "四", "五", "六"]
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                // 月份导航
+                HStack {
+                    Text(monthYearString(currentMonth))
+                        .font(.title3)
+                        .bold()
+                        .foregroundColor(.primary)
+                    Spacer()
+                    HStack(spacing: 20) {
+                        Button(action: { changeMonth(by: -1) }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(.secondary)
+                        }
+                        Button(action: { changeMonth(by: 1) }) {
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+                
+                // 星期标题
+                HStack {
+                    ForEach(weekDays, id: \.self) { day in
+                        Text(day)
+                            .font(.caption)
+                            .bold()
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                
+                // 日期网格
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
+                    ForEach(daysInMonth(), id: \.self) { date in
+                        if let date = date {
+                            TimelineDayCell(
+                                date: date,
+                                isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                                isToday: calendar.isDateInToday(date),
+                                hasData: hasData(on: date)
+                            )
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.3)) {
+                                    selectedDate = date
+                                }
+                                // 选择日期后自动关闭
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onDismiss()
+                                }
+                            }
+                        } else {
+                            Text("").frame(height: 40)
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(20)
+            .navigationTitle("选择日期")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("今天") {
+                        withAnimation {
+                            selectedDate = Date()
+                            currentMonth = Date()
+                        }
+                        onDismiss()
+                    }
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("关闭") { onDismiss() }
+                }
+            }
+        }
+    }
+    
+    func changeMonth(by value: Int) {
+        if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
+            withAnimation { currentMonth = newMonth }
+        }
+    }
+    
+    func monthYearString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年 MM月"
+        return formatter.string(from: date)
+    }
+    
+    func daysInMonth() -> [Date?] {
+        guard let range = calendar.range(of: .day, in: .month, for: currentMonth),
+              let firstDayOfMonth = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: currentMonth))
+        else { return [] }
+        let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth)
+        let paddingDays = firstWeekday - 1
+        var days: [Date?] = Array(repeating: nil, count: paddingDays)
+        for day in range {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstDayOfMonth) {
+                days.append(date)
+            }
+        }
+        return days
+    }
+    
+    func hasData(on date: Date) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return recordedDates.contains(formatter.string(from: date))
+    }
+}
+
+// MARK: - 日历日期单元格（带蓝点标记）
+struct TimelineDayCell: View {
+    let date: Date
+    let isSelected: Bool
+    let isToday: Bool
+    let hasData: Bool
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text("\(Calendar.current.component(.day, from: date))")
+                .font(.system(size: 16, weight: isSelected ? .bold : .regular))
+                .foregroundColor(isSelected ? .white : (isToday ? .blue : .primary))
+                .frame(width: 32, height: 32)
+                .background(isSelected ? Circle().fill(Color.blue) : nil)
+                .overlay(isToday && !isSelected ? Circle().stroke(Color.blue, lineWidth: 1) : nil)
+            
+            // 🔥 蓝点标记：有数据的日期显示蓝点
+            Circle()
+                .fill(hasData ? (isSelected ? .white.opacity(0.8) : Color.blue) : Color.clear)
+                .frame(width: 5, height: 5)
+        }
+        .frame(height: 44)
+    }
+}
+
