@@ -36,8 +36,12 @@ struct MomentGalleryView: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 60) {  // 月份之间的大间距
                     ForEach(groupedMoments, id: \.0) { date, items in
-                        ScatteredMonthSection(date: date, items: items) { image in
-                            self.fullScreenImage = FullScreenImage(image: image)
+                        ScatteredMonthSection(date: date, items: items) { item in
+                            self.fullScreenImage = FullScreenImage(
+                                image: UIImage(data: item.imageData!)!,
+                                isLivePhoto: item.isLivePhoto,
+                                videoData: item.livePhotoVideoData
+                            )
                         }
                     }
                 }
@@ -49,7 +53,7 @@ struct MomentGalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .fullScreenCover(item: $fullScreenImage) { wrapper in
-            FullScreenPhotoView(image: wrapper.image)
+            FullScreenPhotoView(imageEntity: wrapper)
         }
     }
 }
@@ -58,7 +62,7 @@ struct MomentGalleryView: View {
 struct ScatteredMonthSection: View {
     let date: Date
     let items: [TimelineItem]
-    let onImageTap: (UIImage) -> Void
+    let onImageTap: (TimelineItem) -> Void
 
     var monthString: String {
         let formatter = DateFormatter()
@@ -97,7 +101,7 @@ struct ScatteredMonthSection: View {
 // MARK: - 错位瀑布流布局 (核心逻辑)
 struct ScatteredGrid: View {
     let items: [TimelineItem]
-    let onImageTap: (UIImage) -> Void
+    let onImageTap: (TimelineItem) -> Void
 
     // 分列
     private var columns: ([TimelineItem], [TimelineItem]) {
@@ -140,7 +144,7 @@ struct ScatteredGrid: View {
 // MARK: - 拟真照片卡片 (PhotoPaperCard)
 struct PhotoPaperCard: View {
     let item: TimelineItem
-    let onImageTap: (UIImage) -> Void
+    let onImageTap: (TimelineItem) -> Void
 
     // 基于 ID 生成确定性的随机值，防止滚动时抖动
     private var randomRotation: Double {
@@ -160,7 +164,7 @@ struct PhotoPaperCard: View {
 
     var body: some View {
         if let data = item.imageData, let uiImage = UIImage(data: data) {
-            Button(action: { onImageTap(uiImage) }) {
+            Button(action: { onImageTap(item) }) {
                 VStack(spacing: 0) {
                     // 图片层
                     Image(uiImage: uiImage)

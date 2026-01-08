@@ -33,8 +33,8 @@ struct InspirationView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
-                // 1. 背景层 (移除这里的 navigationDestination)
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                // 1. 背景层 - 使用弥散渐变背景（与时间线、时光回顾页面统一）
+                MeshGradientBackground()
 
                 if items.isEmpty {
                     // --- 空状态 ---
@@ -86,8 +86,12 @@ struct InspirationView: View {
                                     onTagTap: { tag in
                                         self.selectedTag = tag
                                     },
-                                    onImageTap: { image in
-                                        self.fullScreenImage = FullScreenImage(image: image)
+                                    onImageTap: { item in
+                                        self.fullScreenImage = FullScreenImage(
+                                            image: UIImage(data: item.imageData!)!,
+                                            isLivePhoto: item.isLivePhoto,
+                                            videoData: item.livePhotoVideoData
+                                        )
                                     }
                                 )
                             }
@@ -175,7 +179,7 @@ struct InspirationView: View {
             }
             .toolbar(.hidden, for: .navigationBar)  // 隐藏系统导航栏
             .fullScreenCover(item: $fullScreenImage) { wrapper in
-                FullScreenPhotoView(image: wrapper.image)
+                FullScreenPhotoView(imageEntity: wrapper)
             }
             .sheet(isPresented: $showNewInputSheet) {
                 InspirationInputView(itemToEdit: nil)
@@ -241,7 +245,7 @@ struct InspirationCardView: View {
 
     var onMenuTap: (TimelineItem, CGPoint) -> Void
     var onTagTap: ((String) -> Void)? = nil
-    var onImageTap: ((UIImage) -> Void)? = nil
+    var onImageTap: ((TimelineItem) -> Void)? = nil
 
     @State private var buttonFrame: CGRect = .zero
 
@@ -282,7 +286,7 @@ struct InspirationCardView: View {
                     .resizable().scaledToFill().frame(height: 180).frame(maxWidth: .infinity)
                     .cornerRadius(8).clipped().contentShape(Rectangle())
                     .onTapGesture {
-                        onImageTap?(uiImage)
+                        onImageTap?(item)
                     }
             }
 

@@ -13,23 +13,27 @@ final class TimelineItem {
     var timestamp: Date
     var content: String
     var iconName: String
+    // 🔥 新增：类型区分 ("timeline" 或 "inspiration")
     var type: String
-    // 🔥 New: Highlight status
-    var isHighlight: Bool
-    
+
     @Attribute(.externalStorage) var imageData: Data?
-    
-    // 🔥 New: Store rich text data (Bold, Strikethrough, etc.)
-    @Attribute(.externalStorage) var richContentData: Data?
-    
-    init(content: String, iconName: String = "circle.fill", timestamp: Date = Date(), imageData: Data? = nil, type: String = "timeline", isHighlight: Bool = false, richContentData: Data? = nil) {
+
+    // 🔥 Live Photo 支持（默认值防止数据迁移错误）
+    var isLivePhoto: Bool = false
+    @Attribute(.externalStorage) var livePhotoVideoData: Data?
+
+    init(
+        content: String, iconName: String = "circle.fill", timestamp: Date = Date(),
+        imageData: Data? = nil, type: String = "timeline", isLivePhoto: Bool = false,
+        livePhotoVideoData: Data? = nil
+    ) {
         self.id = UUID()
         self.content = content
         self.iconName = iconName
         self.timestamp = timestamp
         self.imageData = imageData
         self.type = type
-        self.isHighlight = isHighlight
-        self.richContentData = richContentData
+        self.isLivePhoto = isLivePhoto
+        self.livePhotoVideoData = livePhotoVideoData
     }
 }
