@@ -292,37 +292,40 @@ struct InspirationCardView: View {
 
             // 内容
             if !item.content.isEmpty {
-                let segments = parseContent(item.content)
-                FlowLayout(spacing: 4) {
-                    ForEach(segments.indices, id: \.self) { index in
-                        let segment = segments[index]
-
-                        // 🔥 5. 核心逻辑：判断是否高亮
-                        let isHighlighted = shouldHighlight(segment.text)
-
-                        if segment.isTag {
-                            Button(action: { onTagTap?(segment.text) }) {
-                                Text(segment.text)
-                                    .font(.body)
-                                    // 高亮时加粗，否则普通蓝
-                                    .foregroundColor(isHighlighted ? .blue : .blue)
-                                    .fontWeight(isHighlighted ? .black : .regular)
-                                    .padding(.vertical, 2).padding(.horizontal, 6)
-                                    // 高亮时背景变深
-                                    .background(
-                                        isHighlighted
-                                            ? Color.yellow.opacity(0.3) : Color.blue.opacity(0.1)
-                                    )
-                                    .cornerRadius(4)
+                // 提取标签和纯文本
+                let (tags, plainText) = extractTagsAndText(item.content)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    // 标签行 - 使用 FlowLayout 横向排列
+                    if !tags.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(tags, id: \.self) { tag in
+                                let isHighlighted = shouldHighlight(tag)
+                                Button(action: { onTagTap?(tag) }) {
+                                    Text(tag)
+                                        .font(.body)
+                                        .foregroundColor(.blue)
+                                        .fontWeight(isHighlighted ? .black : .regular)
+                                        .padding(.vertical, 2).padding(.horizontal, 6)
+                                        .background(
+                                            isHighlighted
+                                                ? Color.yellow.opacity(0.3) : Color.blue.opacity(0.1)
+                                        )
+                                        .cornerRadius(4)
+                                }
                             }
-                        } else {
-                            Text(segment.text)
-                                .font(.body)
-                                // 高亮时变蓝，否则普通色
-                                .foregroundColor(isHighlighted ? .blue : .primary)
-                                .fontWeight(isHighlighted ? .bold : .regular)
-                                .background(isHighlighted ? Color.yellow.opacity(0.2) : Color.clear)
                         }
+                    }
+                    
+                    // 纯文本 - 使用普通 Text，自动换行
+                    if !plainText.isEmpty {
+                        let isHighlighted = shouldHighlight(plainText)
+                        Text(plainText)
+                            .font(.body)
+                            .foregroundColor(isHighlighted ? .blue : .primary)
+                            .fontWeight(isHighlighted ? .bold : .regular)
+                            .background(isHighlighted ? Color.yellow.opacity(0.2) : Color.clear)
+                            .fixedSize(horizontal: false, vertical: true) // 允许换行
                     }
                 }
             }
@@ -337,6 +340,28 @@ struct InspirationCardView: View {
     private func shouldHighlight(_ text: String) -> Bool {
         guard let query = highlightText, !query.isEmpty else { return false }
         return text.localizedCaseInsensitiveContains(query)
+    }
+    
+    // 🔥 7. 提取标签和纯文本
+    private func extractTagsAndText(_ content: String) -> (tags: [String], plainText: String) {
+        var tags: [String] = []
+        var plainTextParts: [String] = []
+        
+        // 按空格和换行分割
+        let components = content.components(separatedBy: CharacterSet.whitespacesAndNewlines)
+        
+        for component in components {
+            if component.hasPrefix("#") && component.count > 1 {
+                tags.append(component)
+            } else if !component.isEmpty {
+                plainTextParts.append(component)
+            }
+        }
+        
+        // 纯文本重新用空格连接
+        let plainText = plainTextParts.joined(separator: " ")
+        
+        return (tags, plainText)
     }
 
     // 解析和布局逻辑
@@ -392,7 +417,9 @@ struct FlowLayout: Layout {
         var points: [CGPoint]
     }
     func flow(proposal: ProposedViewSize, subviews: Subviews) -> LayoutResult {
-        let maxWidth = proposal.width ?? .infinity
+        // 修复：当 proposal.width 为 nil 时，使用屏幕宽度减去边距作为默认值
+        // 避免文字因为 maxWidth 为 infinity 而不换行
+        let maxWidth = proposal.width ?? (UIScreen.main.bounds.width - 80)
         var currentX: CGFloat = 0
         var currentY: CGFloat = 0
         var lineHeight: CGFloat = 0
