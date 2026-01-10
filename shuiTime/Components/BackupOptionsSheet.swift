@@ -12,6 +12,8 @@ import UIKit
 struct BackupOptionsSheet: View {
     var onExport: () -> Void
     var onImport: () -> Void
+    var onImportOverwrite: () -> Void  // 🔥 覆盖导入
+    var onCleanDuplicates: () -> Void
     var onDismiss: () -> Void
 
     var body: some View {
@@ -57,15 +59,20 @@ struct BackupOptionsSheet: View {
                     .cornerRadius(12)
                 }
 
-                // 导入按钮
+                // 导入按钮（合并模式）
                 Button(action: {
                     onImport()
                 }) {
                     HStack {
                         Image(systemName: "square.and.arrow.down")
                             .font(.title3)
-                        Text("导入备份")
-                            .font(.headline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("导入备份")
+                                .font(.headline)
+                            Text("合并到现有数据")
+                                .font(.caption2)
+                                .opacity(0.7)
+                        }
                         Spacer()
                     }
                     .foregroundColor(.blue)
@@ -75,6 +82,53 @@ struct BackupOptionsSheet: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.blue, lineWidth: 1)
+                    )
+                }
+                
+                // 🔥 覆盖导入按钮（危险操作）
+                Button(action: {
+                    onImportOverwrite()
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.title3)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("覆盖导入")
+                                .font(.headline)
+                            Text("删除现有数据后导入")
+                                .font(.caption2)
+                                .opacity(0.7)
+                        }
+                        Spacer()
+                    }
+                    .foregroundColor(.red)
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.red, lineWidth: 1)
+                    )
+                }
+                
+                // 清理重复数据按钮
+                Button(action: {
+                    onCleanDuplicates()
+                }) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                            .font(.title3)
+                        Text("清理重复数据")
+                            .font(.headline)
+                        Spacer()
+                    }
+                    .foregroundColor(.orange)
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.orange, lineWidth: 1)
                     )
                 }
             }

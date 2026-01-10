@@ -37,10 +37,13 @@ struct TimeLineView: View {
     // 🔥 备份功能状态
     @State private var showBackupSheet = false
     @State private var showFilePicker = false
+    @State private var showOverwriteFilePicker = false  // 🔥 覆盖导入选择器
     @State private var isExporting = false  // 导出进度状态
     @State private var alertTitle = ""
     @State private var alertMessage = ""
     @State private var showAlert = false
+    @State private var showOverwriteConfirm = false  // 🔥 覆盖确认弹窗
+    @State private var pendingOverwriteURL: URL? = nil  // 🔥 待覆盖的文件URL
 
     // 获取今日数据用于计算额度
     @Query private var allItems: [TimelineItem]
@@ -214,15 +217,38 @@ struct TimeLineView: View {
                 BackupOptionsSheet(
                     onExport: { handleExportBackup() },
                     onImport: { showFilePicker = true },
+                    onImportOverwrite: { showOverwriteFilePicker = true },
+                    onCleanDuplicates: { handleCleanDuplicates() },
                     onDismiss: { showBackupSheet = false }
                 )
-                .presentationDetents([.height(280)])
+                .presentationDetents([.height(480)])  // 🔥 增加高度适配新按钮
             }
-            // 🔥 文件选择器
+            // 🔥 文件选择器（合并导入）
             .sheet(isPresented: $showFilePicker) {
                 DocumentPicker { url in
                     handleImportBackup(from: url)
                 }
+            }
+            // 🔥 文件选择器（覆盖导入）
+            .sheet(isPresented: $showOverwriteFilePicker) {
+                DocumentPicker { url in
+                    pendingOverwriteURL = url
+                    showOverwriteConfirm = true
+                }
+            }
+            // 🔥 覆盖确认弹窗
+            .alert("确认覆盖?", isPresented: $showOverwriteConfirm) {
+                Button("取消", role: .cancel) {
+                    pendingOverwriteURL = nil
+                }
+                Button("确认覆盖", role: .destructive) {
+                    if let url = pendingOverwriteURL {
+                        handleImportOverwrite(from: url)
+                    }
+                    pendingOverwriteURL = nil
+                }
+            } message: {
+                Text("此操作将删除所有现有数据，并用备份文件中的数据替换。\n\n此操作不可撤销！")
             }
             // 🔥 提示框
             .alert(alertTitle, isPresented: $showAlert) {
@@ -418,6 +444,57 @@ struct TimeLineView: View {
         }
 
         showFilePicker = false
+    }
+    
+    // 🔥 清理重复数据
+    private func handleCleanDuplicates() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        
+        showBackupSheet = false
+        
+        let deletedCount = BackupManager.shared.removeDuplicates(context: modelContext)
+        
+        if deletedCount > 0 {
+            alertTitle = "清理完成"
+            alertMessage = "已删除 \(deletedCount) 条重复记录"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.success)
+        } else {
+            alertTitle = "无重复数据"
+            alertMessage = "当前没有发现重复的记录"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.warning)
+        }
+    }
+    
+    // 🔥 覆盖导入
+    private func handleImportOverwrite(from url: URL) {
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred()
+        
+        showBackupSheet = false
+        showOverwriteFilePicker = false
+        
+        if let count = BackupManager.shared.importDataWithOverwrite(from: url, context: modelContext) {
+            alertTitle = "覆盖完成"
+            alertMessage = "已删除原有数据，成功导入 \(count) 条记录"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.success)
+        } else {
+            alertTitle = "导入失败"
+            alertMessage = "覆盖导入时发生错误\n请确认文件格式正确"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.error)
+        }
     }
 }
 
