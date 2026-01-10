@@ -216,12 +216,23 @@ struct TimeLineView: View {
             .sheet(isPresented: $showBackupSheet) {
                 BackupOptionsSheet(
                     onExport: { handleExportBackup() },
-                    onImport: { showFilePicker = true },
-                    onImportOverwrite: { showOverwriteFilePicker = true },
+                    onImport: {
+                        // 先关闭当前 sheet，延迟后再打开文件选择器
+                        showBackupSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showFilePicker = true
+                        }
+                    },
+                    onImportOverwrite: {
+                        showBackupSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showOverwriteFilePicker = true
+                        }
+                    },
                     onCleanDuplicates: { handleCleanDuplicates() },
                     onDismiss: { showBackupSheet = false }
                 )
-                .presentationDetents([.height(480)])  // 🔥 增加高度适配新按钮
+                .presentationDetents([.height(480)])
             }
             // 🔥 文件选择器（合并导入）
             .sheet(isPresented: $showFilePicker) {
