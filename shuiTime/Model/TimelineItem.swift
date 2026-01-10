@@ -22,10 +22,13 @@ final class TimelineItem {
     var isLivePhoto: Bool = false
     @Attribute(.externalStorage) var livePhotoVideoData: Data?
 
+    // 🔥 圈选颜色（十六进制字符串，如 "#FF0000"）
+    var borderColorHex: String?
+
     init(
         content: String, iconName: String = "circle.fill", timestamp: Date = Date(),
         imageData: Data? = nil, type: String = "timeline", isLivePhoto: Bool = false,
-        livePhotoVideoData: Data? = nil
+        livePhotoVideoData: Data? = nil, borderColorHex: String? = nil
     ) {
         self.id = UUID()
         self.content = content
@@ -35,5 +38,6 @@ final class TimelineItem {
         self.type = type
         self.isLivePhoto = isLivePhoto
         self.livePhotoVideoData = livePhotoVideoData
+        self.borderColorHex = borderColorHex
     }
 }

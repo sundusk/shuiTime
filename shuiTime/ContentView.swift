@@ -25,10 +25,10 @@ struct ContentView: View {
                 }
                 .tag(0)
 
-            // 2. 灵感集
+            // 2. 瞬息
             InspirationView() // 不需要传参了，内部自己管理状态
                 .tabItem {
-                    Label("灵感集", systemImage: "lightbulb")
+                    Label("瞬息", systemImage: "lightbulb")
                 }
                 .tag(1)
 

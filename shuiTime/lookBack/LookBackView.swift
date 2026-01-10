@@ -294,7 +294,7 @@ struct TimeCoverCard: View {
                         }
 
                         // 中文副标题
-                        Text("— 点击进入瞬影长廊 —")
+                        Text("— 点击进入时光墙 —")
                             .font(.caption2)
                             .fontWeight(.light)
                             .kerning(4)
