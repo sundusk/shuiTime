@@ -471,9 +471,8 @@ struct FlowLayout: Layout {
         var points: [CGPoint]
     }
     func flow(proposal: ProposedViewSize, subviews: Subviews) -> LayoutResult {
-        // 修复：当 proposal.width 为 nil 时，使用屏幕宽度减去边距作为默认值
-        // 避免文字因为 maxWidth 为 infinity 而不换行
-        let maxWidth = proposal.width ?? (UIScreen.main.bounds.width - 80)
+        let defaultMaxWidth: CGFloat = 600 // 适用于大多数设备的保守默认值
+        let maxWidth = proposal.width ?? defaultMaxWidth
         var currentX: CGFloat = 0
         var currentY: CGFloat = 0
         var lineHeight: CGFloat = 0
