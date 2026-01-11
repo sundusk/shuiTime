@@ -44,6 +44,8 @@ struct TimeLineView: View {
     @State private var showAlert = false
     @State private var showOverwriteConfirm = false  // 🔥 覆盖确认弹窗
     @State private var pendingOverwriteURL: URL? = nil  // 🔥 待覆盖的文件URL
+    @State private var showExportPicker = false  // 🔥 导出选择器开关
+    @State private var exportURL: URL? = nil  // 🔥 待导出的文件URL
 
     // 获取今日数据用于计算额度
     @Query private var allItems: [TimelineItem]
@@ -240,6 +242,22 @@ struct TimeLineView: View {
                     handleImportBackup(from: url)
                 }
             }
+            // 🔥 文件选择器（导出备份）
+            .sheet(isPresented: $showExportPicker) {
+                if let url = exportURL {
+                    DocumentExporter(itemURL: url) { success in
+                        if success {
+                            alertTitle = "导出成功"
+                            alertMessage = "备份文件已成功保存到指定位置"
+                        } else {
+                            alertTitle = "导出取消"
+                            alertMessage = "未保存备份文件"
+                        }
+                        showAlert = true
+                        exportURL = nil
+                    }
+                }
+            }
             // 🔥 文件选择器（覆盖导入）
             .sheet(isPresented: $showOverwriteFilePicker) {
                 DocumentPicker { url in
@@ -409,10 +427,10 @@ struct TimeLineView: View {
         // 导出所有数据
         if let fileURL = BackupManager.shared.exportData(items: allItems) {
             withAnimation { isExporting = false }
-            alertTitle = "备份成功"
-            alertMessage =
-                "已导出 \(allItems.count) 条记录\n文件: \(fileURL.lastPathComponent)\n\n可在 App 中查看和分享"
-            showAlert = true
+            
+            // 记录导出的本地 URL 并触发选择器
+            self.exportURL = fileURL
+            self.showExportPicker = true
 
             // 成功震动反馈
             let notification = UINotificationFeedbackGenerator()
