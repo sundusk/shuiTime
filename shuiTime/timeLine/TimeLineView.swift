@@ -543,6 +543,8 @@ struct FloatingBallMenu: View {
     @State private var dragStartOffset: CGSize = .zero
     @State private var activeSelection: Int? = nil
     @State private var isBreathing = false
+    @State private var isFloating = false  // 🌊 上下浮动动画
+    @State private var isAlive = false      // 💓 微微呼吸缩放
 
     // 🔥 1. 计算属性：判断当前球是否在屏幕右侧
     private var isOnRightSide: Bool {
@@ -588,35 +590,24 @@ struct FloatingBallMenu: View {
                 .transition(.scale.combined(with: .opacity))
             }
 
-            // 主球体
+            // 主球体 - 使用 xiaoshui.png 图片
             ZStack {
                 if !isExpanded {
-                    Circle()
-                        .fill(Color.green)
+                    Image("xiaoshui")
+                        .resizable()
+                        .scaledToFit()
                         .frame(width: 56, height: 56)
                         .scaleEffect(isBreathing ? 1.3 : 1.0)
                         .opacity(isBreathing ? 0.0 : 0.3)
                 }
 
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [Color.green, Color.mint.opacity(0.8)]),
-                            center: .center,
-                            startRadius: 5,
-                            endRadius: 30
-                        )
-                    )
+                Image("xiaoshui")
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 56, height: 56)
-                    .overlay(
-                        Circle().strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.5), .clear], startPoint: .topLeading,
-                                endPoint: .bottomTrailing),
-                            lineWidth: 1
-                        )
-                    )
-                    .shadow(color: Color.green.opacity(0.4), radius: 8, x: 0, y: 5)
+                    .scaleEffect(isAlive ? 1.05 : 1.0)  // 💓 微微呼吸
+                    .offset(y: isFloating ? -3 : 3)     // 🌊 上下浮动
+                    .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
             }
             .scaleEffect(isExpanded ? 0.9 : 1.0)
         }
@@ -715,6 +706,14 @@ struct FloatingBallMenu: View {
             dragStartOffset = offset
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: false)) {
                 isBreathing = true
+            }
+            // 🌊 启动浮动动画（上下轻柔飘动）
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                isFloating = true
+            }
+            // 💓 启动呼吸动画（微微缩放）
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                isAlive = true
             }
         }
     }
