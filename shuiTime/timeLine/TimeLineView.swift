@@ -37,10 +37,15 @@ struct TimeLineView: View {
     // 🔥 备份功能状态
     @State private var showBackupSheet = false
     @State private var showFilePicker = false
+    @State private var showOverwriteFilePicker = false  // 🔥 覆盖导入选择器
     @State private var isExporting = false  // 导出进度状态
     @State private var alertTitle = ""
     @State private var alertMessage = ""
     @State private var showAlert = false
+    @State private var showOverwriteConfirm = false  // 🔥 覆盖确认弹窗
+    @State private var pendingOverwriteURL: URL? = nil  // 🔥 待覆盖的文件URL
+    @State private var showExportPicker = false  // 🔥 导出选择器开关
+    @State private var exportURL: URL? = nil  // 🔥 待导出的文件URL
 
     // 获取今日数据用于计算额度
     @Query private var allItems: [TimelineItem]
@@ -213,16 +218,66 @@ struct TimeLineView: View {
             .sheet(isPresented: $showBackupSheet) {
                 BackupOptionsSheet(
                     onExport: { handleExportBackup() },
-                    onImport: { showFilePicker = true },
+                    onImport: {
+                        // 先关闭当前 sheet，延迟后再打开文件选择器
+                        showBackupSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showFilePicker = true
+                        }
+                    },
+                    onImportOverwrite: {
+                        showBackupSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showOverwriteFilePicker = true
+                        }
+                    },
+                    onCleanDuplicates: { handleCleanDuplicates() },
                     onDismiss: { showBackupSheet = false }
                 )
-                .presentationDetents([.height(280)])
+                .presentationDetents([.height(480)])
             }
-            // 🔥 文件选择器
+            // 🔥 文件选择器（合并导入）
             .sheet(isPresented: $showFilePicker) {
                 DocumentPicker { url in
                     handleImportBackup(from: url)
                 }
+            }
+            // 🔥 文件选择器（导出备份）
+            .sheet(isPresented: $showExportPicker) {
+                if let url = exportURL {
+                    DocumentExporter(itemURL: url) { success in
+                        if success {
+                            alertTitle = "导出成功"
+                            alertMessage = "备份文件已成功保存到指定位置"
+                        } else {
+                            alertTitle = "导出取消"
+                            alertMessage = "未保存备份文件"
+                        }
+                        showAlert = true
+                        exportURL = nil
+                    }
+                }
+            }
+            // 🔥 文件选择器（覆盖导入）
+            .sheet(isPresented: $showOverwriteFilePicker) {
+                DocumentPicker { url in
+                    pendingOverwriteURL = url
+                    showOverwriteConfirm = true
+                }
+            }
+            // 🔥 覆盖确认弹窗
+            .alert("确认覆盖?", isPresented: $showOverwriteConfirm) {
+                Button("取消", role: .cancel) {
+                    pendingOverwriteURL = nil
+                }
+                Button("确认覆盖", role: .destructive) {
+                    if let url = pendingOverwriteURL {
+                        handleImportOverwrite(from: url)
+                    }
+                    pendingOverwriteURL = nil
+                }
+            } message: {
+                Text("此操作将删除所有现有数据，并用备份文件中的数据替换。\n\n此操作不可撤销！")
             }
             // 🔥 提示框
             .alert(alertTitle, isPresented: $showAlert) {
@@ -372,10 +427,10 @@ struct TimeLineView: View {
         // 导出所有数据
         if let fileURL = BackupManager.shared.exportData(items: allItems) {
             withAnimation { isExporting = false }
-            alertTitle = "备份成功"
-            alertMessage =
-                "已导出 \(allItems.count) 条记录\n文件: \(fileURL.lastPathComponent)\n\n可在 App 中查看和分享"
-            showAlert = true
+            
+            // 记录导出的本地 URL 并触发选择器
+            self.exportURL = fileURL
+            self.showExportPicker = true
 
             // 成功震动反馈
             let notification = UINotificationFeedbackGenerator()
@@ -419,6 +474,57 @@ struct TimeLineView: View {
 
         showFilePicker = false
     }
+    
+    // 🔥 清理重复数据
+    private func handleCleanDuplicates() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        
+        showBackupSheet = false
+        
+        let deletedCount = BackupManager.shared.removeDuplicates(context: modelContext)
+        
+        if deletedCount > 0 {
+            alertTitle = "清理完成"
+            alertMessage = "已删除 \(deletedCount) 条重复记录"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.success)
+        } else {
+            alertTitle = "无重复数据"
+            alertMessage = "当前没有发现重复的记录"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.warning)
+        }
+    }
+    
+    // 🔥 覆盖导入
+    private func handleImportOverwrite(from url: URL) {
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred()
+        
+        showBackupSheet = false
+        showOverwriteFilePicker = false
+        
+        if let count = BackupManager.shared.importDataWithOverwrite(from: url, context: modelContext) {
+            alertTitle = "覆盖完成"
+            alertMessage = "已删除原有数据，成功导入 \(count) 条记录"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.success)
+        } else {
+            alertTitle = "导入失败"
+            alertMessage = "覆盖导入时发生错误\n请确认文件格式正确"
+            showAlert = true
+            
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.error)
+        }
+    }
 }
 
 // MARK: - 增强版悬浮球 (逻辑重构 + 🔥绿色新皮肤)
@@ -437,6 +543,8 @@ struct FloatingBallMenu: View {
     @State private var dragStartOffset: CGSize = .zero
     @State private var activeSelection: Int? = nil
     @State private var isBreathing = false
+    @State private var isFloating = false  // 🌊 上下浮动动画
+    @State private var isAlive = false      // 💓 微微呼吸缩放
 
     // 🔥 1. 计算属性：判断当前球是否在屏幕右侧
     private var isOnRightSide: Bool {
@@ -482,35 +590,24 @@ struct FloatingBallMenu: View {
                 .transition(.scale.combined(with: .opacity))
             }
 
-            // 主球体
+            // 主球体 - 使用 xiaoshui.png 图片
             ZStack {
                 if !isExpanded {
-                    Circle()
-                        .fill(Color.green)
+                    Image("xiaoshui")
+                        .resizable()
+                        .scaledToFit()
                         .frame(width: 56, height: 56)
                         .scaleEffect(isBreathing ? 1.3 : 1.0)
                         .opacity(isBreathing ? 0.0 : 0.3)
                 }
 
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [Color.green, Color.mint.opacity(0.8)]),
-                            center: .center,
-                            startRadius: 5,
-                            endRadius: 30
-                        )
-                    )
+                Image("xiaoshui")
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 56, height: 56)
-                    .overlay(
-                        Circle().strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.5), .clear], startPoint: .topLeading,
-                                endPoint: .bottomTrailing),
-                            lineWidth: 1
-                        )
-                    )
-                    .shadow(color: Color.green.opacity(0.4), radius: 8, x: 0, y: 5)
+                    .scaleEffect(isAlive ? 1.05 : 1.0)  // 💓 微微呼吸
+                    .offset(y: isFloating ? -3 : 3)     // 🌊 上下浮动
+                    .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
             }
             .scaleEffect(isExpanded ? 0.9 : 1.0)
         }
@@ -609,6 +706,14 @@ struct FloatingBallMenu: View {
             dragStartOffset = offset
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: false)) {
                 isBreathing = true
+            }
+            // 🌊 启动浮动动画（上下轻柔飘动）
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                isFloating = true
+            }
+            // 💓 启动呼吸动画（微微缩放）
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                isAlive = true
             }
         }
     }

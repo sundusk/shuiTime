@@ -49,7 +49,7 @@ struct MomentGalleryView: View {
                 .padding(.bottom, 100)
             }
         }
-        .navigationTitle("时光长廊")
+        .navigationTitle("时光墙")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .fullScreenCover(item: $fullScreenImage) { wrapper in

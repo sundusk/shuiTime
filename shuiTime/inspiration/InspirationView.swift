@@ -30,6 +30,9 @@ struct InspirationView: View {
     // 控制搜索页面的显示
     @State private var showSearchPage = false
 
+    // 🔥 圈选功能
+    @State private var showColorPicker = false
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
@@ -53,7 +56,7 @@ struct InspirationView: View {
                             Image(systemName: "lightbulb.min")
                                 .font(.system(size: 50))
                                 .foregroundColor(.gray.opacity(0.3))
-                            Text("点击右下角记录灵感")
+                            Text("点击右下角记录瞬息")
                                 .foregroundColor(.gray)
                             Spacer()
                         }
@@ -141,6 +144,21 @@ struct InspirationView: View {
                             .padding().foregroundColor(.primary)
                         }
                         Divider()
+                        // 🔥 新增：圈选按钮
+                        Button(action: {
+                            showCustomMenu = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                showColorPicker = true
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "circle.circle")
+                                Text("圈选")
+                                Spacer()
+                            }
+                            .padding().foregroundColor(.primary)
+                        }
+                        Divider()
                         Button(action: {
                             showCustomMenu = false
                             if let item = itemForMenu {
@@ -163,6 +181,34 @@ struct InspirationView: View {
                     .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
                     .position(x: menuPosition.x - 70, y: menuPosition.y + 60)
                     .transition(.scale(scale: 0.8, anchor: .topTrailing).combined(with: .opacity))
+                }
+
+                // 🔥 彩虹颜色选择器浮层
+                if showColorPicker {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showColorPicker = false
+                            }
+                        }
+                    
+                    RainbowColorPickerView(
+                        onColorSelected: { colorHex in
+                            if let item = itemForMenu {
+                                item.borderColorHex = colorHex
+                                try? modelContext.save()
+                            }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showColorPicker = false
+                            }
+                        },
+                        onDismiss: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showColorPicker = false
+                            }
+                        }
+                    )
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
             // 🔥🔥🔥 修复方案：改用 fullScreenCover 而不是 navigationDestination 🔥🔥🔥
@@ -213,7 +259,7 @@ struct CustomHeader: View {
 
     var body: some View {
         HStack(alignment: .center) {
-            Text("灵感集")
+            Text("瞬息")
                 .font(.largeTitle)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
@@ -292,37 +338,40 @@ struct InspirationCardView: View {
 
             // 内容
             if !item.content.isEmpty {
-                let segments = parseContent(item.content)
-                FlowLayout(spacing: 4) {
-                    ForEach(segments.indices, id: \.self) { index in
-                        let segment = segments[index]
-
-                        // 🔥 5. 核心逻辑：判断是否高亮
-                        let isHighlighted = shouldHighlight(segment.text)
-
-                        if segment.isTag {
-                            Button(action: { onTagTap?(segment.text) }) {
-                                Text(segment.text)
-                                    .font(.body)
-                                    // 高亮时加粗，否则普通蓝
-                                    .foregroundColor(isHighlighted ? .blue : .blue)
-                                    .fontWeight(isHighlighted ? .black : .regular)
-                                    .padding(.vertical, 2).padding(.horizontal, 6)
-                                    // 高亮时背景变深
-                                    .background(
-                                        isHighlighted
-                                            ? Color.yellow.opacity(0.3) : Color.blue.opacity(0.1)
-                                    )
-                                    .cornerRadius(4)
+                // 提取标签和纯文本
+                let (tags, plainText) = extractTagsAndText(item.content)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    // 标签行 - 使用 FlowLayout 横向排列
+                    if !tags.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(tags, id: \.self) { tag in
+                                let isHighlighted = shouldHighlight(tag)
+                                Button(action: { onTagTap?(tag) }) {
+                                    Text(tag)
+                                        .font(.body)
+                                        .foregroundColor(.blue)
+                                        .fontWeight(isHighlighted ? .black : .regular)
+                                        .padding(.vertical, 2).padding(.horizontal, 6)
+                                        .background(
+                                            isHighlighted
+                                                ? Color.yellow.opacity(0.3) : Color.blue.opacity(0.1)
+                                        )
+                                        .cornerRadius(4)
+                                }
                             }
-                        } else {
-                            Text(segment.text)
-                                .font(.body)
-                                // 高亮时变蓝，否则普通色
-                                .foregroundColor(isHighlighted ? .blue : .primary)
-                                .fontWeight(isHighlighted ? .bold : .regular)
-                                .background(isHighlighted ? Color.yellow.opacity(0.2) : Color.clear)
                         }
+                    }
+                    
+                    // 纯文本 - 使用普通 Text，自动换行
+                    if !plainText.isEmpty {
+                        let isHighlighted = shouldHighlight(plainText)
+                        Text(plainText)
+                            .font(.body)
+                            .foregroundColor(isHighlighted ? .blue : .primary)
+                            .fontWeight(isHighlighted ? .bold : .regular)
+                            .background(isHighlighted ? Color.yellow.opacity(0.2) : Color.clear)
+                            .fixedSize(horizontal: false, vertical: true) // 允许换行
                     }
                 }
             }
@@ -330,6 +379,14 @@ struct InspirationCardView: View {
         .padding(16)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(16)
+        // 🔥 圈选颜色边框
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    item.borderColorHex.flatMap { Color(hex: $0) } ?? Color.clear,
+                    lineWidth: item.borderColorHex != nil ? 3 : 0
+                )
+        )
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 
@@ -337,6 +394,28 @@ struct InspirationCardView: View {
     private func shouldHighlight(_ text: String) -> Bool {
         guard let query = highlightText, !query.isEmpty else { return false }
         return text.localizedCaseInsensitiveContains(query)
+    }
+    
+    // 🔥 7. 提取标签和纯文本
+    private func extractTagsAndText(_ content: String) -> (tags: [String], plainText: String) {
+        var tags: [String] = []
+        var plainTextParts: [String] = []
+        
+        // 按空格和换行分割
+        let components = content.components(separatedBy: CharacterSet.whitespacesAndNewlines)
+        
+        for component in components {
+            if component.hasPrefix("#") && component.count > 1 {
+                tags.append(component)
+            } else if !component.isEmpty {
+                plainTextParts.append(component)
+            }
+        }
+        
+        // 纯文本重新用空格连接
+        let plainText = plainTextParts.joined(separator: " ")
+        
+        return (tags, plainText)
     }
 
     // 解析和布局逻辑
@@ -392,7 +471,8 @@ struct FlowLayout: Layout {
         var points: [CGPoint]
     }
     func flow(proposal: ProposedViewSize, subviews: Subviews) -> LayoutResult {
-        let maxWidth = proposal.width ?? .infinity
+        let defaultMaxWidth: CGFloat = 600 // 适用于大多数设备的保守默认值
+        let maxWidth = proposal.width ?? defaultMaxWidth
         var currentX: CGFloat = 0
         var currentY: CGFloat = 0
         var lineHeight: CGFloat = 0
@@ -412,3 +492,103 @@ struct FlowLayout: Layout {
             size: CGSize(width: maxWidth, height: currentY + lineHeight), points: points)
     }
 }
+
+// MARK: - 🔥 彩虹颜色选择器视图
+struct RainbowColorPickerView: View {
+    var onColorSelected: (String?) -> Void
+    var onDismiss: () -> Void
+    
+    // 彩虹七色
+    private let rainbowColors: [(name: String, hex: String, color: Color)] = [
+        ("红", "#FF0000", .red),
+        ("橙", "#FF7F00", .orange),
+        ("黄", "#FFFF00", .yellow),
+        ("绿", "#00FF00", .green),
+        ("蓝", "#0000FF", .blue),
+        ("靛", "#4B0082", Color(red: 0.29, green: 0, blue: 0.51)),
+        ("紫", "#8B00FF", .purple)
+    ]
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("选择圈选颜色")
+                .font(.headline)
+                .foregroundColor(.white)
+            
+            // 颜色圆圈 - 上3下4排列
+            VStack(spacing: 16) {
+                // 第一行：红、橙、黄
+                HStack(spacing: 20) {
+                    ForEach(0..<3, id: \.self) { index in
+                        colorButton(for: rainbowColors[index])
+                    }
+                }
+                // 第二行：绿、蓝、靛、紫
+                HStack(spacing: 20) {
+                    ForEach(3..<7, id: \.self) { index in
+                        colorButton(for: rainbowColors[index])
+                    }
+                }
+            }
+            
+            // 清除按钮
+            Button(action: {
+                onColorSelected(nil)
+            }) {
+                HStack {
+                    Image(systemName: "xmark.circle")
+                    Text("清除颜色")
+                }
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.8))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.2))
+                .cornerRadius(20)
+            }
+            .padding(.top, 8)
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        )
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity) // 🔥 居中显示
+    }
+    
+    // 🔥 颜色按钮抽取为辅助函数
+    @ViewBuilder
+    private func colorButton(for colorInfo: (name: String, hex: String, color: Color)) -> some View {
+        Button(action: {
+            onColorSelected(colorInfo.hex)
+        }) {
+            Circle()
+                .fill(colorInfo.color)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                )
+                .shadow(color: colorInfo.color.opacity(0.5), radius: 5)
+        }
+    }
+}
+
+// MARK: - Color 扩展：十六进制转换
+extension Color {
+    init?(hex: String) {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        
+        var rgb: UInt64 = 0
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
+        
+        let r = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let g = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let b = Double(rgb & 0x0000FF) / 255.0
+        
+        self.init(red: r, green: g, blue: b)
+    }
+}
+

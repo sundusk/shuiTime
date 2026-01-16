@@ -24,7 +24,7 @@ struct InspirationSearchView: View {
     enum SearchFilter: String, CaseIterable {
         case all = "全部"
         case hasImage = "有图的"
-        case textOnly = "纯灵感"
+        case textOnly = "仅瞬息"
         case recent = "最近一周"
     }
 
@@ -229,7 +229,7 @@ struct LandingContentView: View {
 
                     QuickFilterCard(
                         icon: "text.bubble",
-                        title: "纯灵感",
+                        title: "仅瞬息",
                         color: .orange,
                         isSelected: selectedFilter == .textOnly
                     ) { selectedFilter = .textOnly }
@@ -317,7 +317,7 @@ struct ResultsContentView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 50))
                         .foregroundColor(.gray.opacity(0.3))
-                    Text("未找到相关灵感")
+                    Text("未找到相关瞬息")
                         .foregroundColor(.gray)
                     Text("换个关键词试试？")
                         .font(.caption)
