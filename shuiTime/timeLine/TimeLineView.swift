@@ -569,10 +569,37 @@ struct FloatingBallMenu: View {
 
     private let triggerDistance: CGFloat = 45.0  // 稍微增大触发区域
 
+    // 🔥 "瞬影"标签的偏移位置
+    private var labelOffset: CGSize {
+        // 标签位置在相册按钮的左上方，避免被图标遮挡
+        CGSize(width: isOnRightSide ? -55 : 55, height: -130)
+    }
+
     var body: some View {
         ZStack {
             // 菜单项
             if isExpanded {
+                // 🔥 "瞬影"功能提示标签
+                Text("瞬影")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.9))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.blue.opacity(0.8), Color.cyan.opacity(0.6)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                    .rotationEffect(.degrees(isOnRightSide ? -35 : 35))  // 🔥 与按钮连线平行的角度
+                    .offset(labelOffset)
+                    .transition(.scale.combined(with: .opacity))
+
                 // 相机
                 MenuBubble(
                     icon: "camera.fill", color: .blue, label: "拍摄",
