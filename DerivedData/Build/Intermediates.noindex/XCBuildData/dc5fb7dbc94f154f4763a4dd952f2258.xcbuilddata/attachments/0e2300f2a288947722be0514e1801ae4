@@ -1,0 +1,249 @@
+{
+  "" : {
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTime-primary.dia",
+    "emit-module-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTime-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTime-primary-emit-module.dia",
+    "pch" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTime-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTime-primary.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/BackupOptionsSheet.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/DocumentExporter.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/DocumentPicker.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/FullScreenImageView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/ImagePicker.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/LivePhotoPreviewSheet.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/PHPickerView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/PHPickerView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/SideMenuView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/SideMenuView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/ContentView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Item.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/Item~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Model/BackupManager.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupManager~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Model/LivePhotoAsset.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoAsset~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Model/TimelineItem.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimelineItem~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/InspirationInputView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationInputView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/InspirationSearchView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/InspirationView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/TagFilterView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/lookBack/LastYearFeature.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LastYearFeature~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/lookBack/LookBackView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LookBackView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/lookBack/MomentGalleryView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/MomentGalleryView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/shuiTimeApp.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/shuiTimeApp~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/timeLine/EditTimelineView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/EditTimelineView~partial.swiftmodule"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/timeLine/TimeLineView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.dia",
+    "index-unit-output-path" : "/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.o",
+    "llvm-bc" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.bc",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView.swiftdeps",
+    "swiftmodule" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TimeLineView~partial.swiftmodule"
+  }
+}

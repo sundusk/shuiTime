@@ -32,6 +32,9 @@ struct LookBackView: View {
     // sheet 弹窗控制
     @State private var lastYearSheetData: LastYearDataWrapper?
 
+    // 时光墙封面：缓存一次，避免 body 重算导致“随机”抖动
+    @State private var coverMomentItem: TimelineItem?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -44,7 +47,7 @@ struct LookBackView: View {
                         // 🔥 2. 升级：时光封面卡片 (多层堆叠 + 色差质感)
                         NavigationLink(destination: MomentGalleryView()) {
                             TimeCoverCard(
-                                momentItem: latestMomentInMonth(date: currentMonth),
+                                momentItem: coverMomentItem,
                                 month: currentMonth
                             )
                         }
@@ -121,22 +124,48 @@ struct LookBackView: View {
                     })
             }
         }
+        .onAppear { refreshCoverMomentItem(forceReshuffleFallback: true) }
+        .onChange(of: currentMonth) { _, _ in refreshCoverMomentItem(forceReshuffleFallback: true) }
+        .onChange(of: allItems.count) { _, _ in refreshCoverMomentItem(forceReshuffleFallback: false) }
     }
 
     // MARK: - 数据处理辅助函数
 
-    // 获取本月最新的一张瞬影
-    private func latestMomentInMonth(date: Date) -> TimelineItem? {
+    // 获取指定月份的“瞬影”(有图)列表，按时间倒序
+    private func momentsInMonth(_ date: Date) -> [TimelineItem] {
         let calendar = Calendar.current
-        return
-            allItems
+        return allItems
             .filter {
                 calendar.isDate($0.timestamp, equalTo: date, toGranularity: .month)
-                    && $0.type == "moment"  // 必须是瞬影
-                    && $0.imageData != nil  // 必须有图
+                    && $0.type == "moment"
+                    && $0.imageData != nil
             }
-            .sorted { $0.timestamp > $1.timestamp }  // 按时间倒序
-            .first
+            .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    private func fallbackMomentFromPreviousMonth(for date: Date) -> TimelineItem? {
+        let calendar = Calendar.current
+        guard let previousMonth = calendar.date(byAdding: .month, value: -1, to: date) else {
+            return nil
+        }
+        return momentsInMonth(previousMonth).randomElement()
+    }
+
+    // 时光墙封面逻辑：
+    // - 本月有瞬影：取最新一张
+    // - 本月无瞬影：随机展示上个月的一张瞬影作为封面（并缓存，避免抖动）
+    private func refreshCoverMomentItem(forceReshuffleFallback: Bool) {
+        let thisMonthMoments = momentsInMonth(currentMonth)
+        if let latest = thisMonthMoments.first {
+            coverMomentItem = latest
+            return
+        }
+
+        if !forceReshuffleFallback, coverMomentItem != nil {
+            return
+        }
+
+        coverMomentItem = fallbackMomentFromPreviousMonth(for: currentMonth)
     }
 
     private func getRecordedDates() -> Set<String> {

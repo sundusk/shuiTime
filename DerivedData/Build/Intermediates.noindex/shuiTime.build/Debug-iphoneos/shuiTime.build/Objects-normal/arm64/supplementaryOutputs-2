@@ -1,0 +1,23 @@
+{
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/FullScreenImageView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/FullScreenImageView.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/ImagePicker.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/ImagePicker.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/LivePhotoPreviewSheet.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/LivePhotoPreviewSheet.swiftdeps"
+  }
+}

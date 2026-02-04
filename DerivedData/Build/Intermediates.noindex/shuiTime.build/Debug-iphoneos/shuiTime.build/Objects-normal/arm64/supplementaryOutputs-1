@@ -1,0 +1,23 @@
+{
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/BackupOptionsSheet.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/BackupOptionsSheet.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/DocumentExporter.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentExporter.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/Components/DocumentPicker.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/DocumentPicker.swiftdeps"
+  }
+}

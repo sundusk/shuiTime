@@ -1,0 +1,23 @@
+{
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/InspirationSearchView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationSearchView.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/InspirationView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/InspirationView.swiftdeps"
+  },
+  "/Users/sundusk/App/shuiTime/shuiTime/inspiration/TagFilterView.swift" : {
+    "const-values" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.swiftconstvalues",
+    "dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.d",
+    "diagnostics" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.dia",
+    "object" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.o",
+    "swift-dependencies" : "/Users/sundusk/App/shuiTime/DerivedData/Build/Intermediates.noindex/shuiTime.build/Debug-iphoneos/shuiTime.build/Objects-normal/arm64/TagFilterView.swiftdeps"
+  }
+}
