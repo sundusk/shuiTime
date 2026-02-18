@@ -122,6 +122,7 @@ struct FullScreenPhotoView: View {
 // MARK: - 3. 底层缩放组件 (UIViewRepresentable)
 struct ZoomableImageView: UIViewRepresentable {
     var image: UIImage
+    var onZoomScaleChange: ((CGFloat) -> Void)? = nil
 
     func makeUIView(context: Context) -> UIScrollView {
         let scrollView = UIScrollView()
@@ -139,6 +140,7 @@ struct ZoomableImageView: UIViewRepresentable {
 
         scrollView.addSubview(imageView)
         context.coordinator.imageView = imageView
+        context.coordinator.onZoomScaleChange = onZoomScaleChange
 
         NSLayoutConstraint.activate([
             imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
@@ -150,14 +152,23 @@ struct ZoomableImageView: UIViewRepresentable {
         return scrollView
     }
 
-    func updateUIView(_ uiView: UIScrollView, context: Context) {}
+    func updateUIView(_ uiView: UIScrollView, context: Context) {
+        context.coordinator.imageView?.image = image
+        context.coordinator.onZoomScaleChange = onZoomScaleChange
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     class Coordinator: NSObject, UIScrollViewDelegate {
         var imageView: UIImageView?
+        var onZoomScaleChange: ((CGFloat) -> Void)?
+
         func viewForZooming(in scrollView: UIScrollView) -> UIView? {
             return imageView
+        }
+
+        func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            onZoomScaleChange?(scrollView.zoomScale)
         }
     }
 }

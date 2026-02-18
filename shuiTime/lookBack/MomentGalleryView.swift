@@ -7,6 +7,13 @@
 
 import SwiftData
 import SwiftUI
+import AVKit
+import UIKit
+
+struct MomentMedia: Identifiable {
+    let id: UUID
+    let imageEntity: FullScreenImage
+}
 
 struct MomentGalleryView: View {
     // 筛选所有“瞬影”类型且有图片的记录
@@ -16,7 +23,9 @@ struct MomentGalleryView: View {
     private var allMoments: [TimelineItem]
 
     // 全屏浏览状态
-    @State private var fullScreenImage: FullScreenImage?
+    @State private var selectedIndex: Int = 0
+    @State private var isFullScreenPresented = false
+    @State private var mediaList: [MomentMedia] = []
 
     // 按月份分组数据
     private var groupedMoments: [(Date, [TimelineItem])] {
@@ -37,11 +46,11 @@ struct MomentGalleryView: View {
                 LazyVStack(spacing: 60) {  // 月份之间的大间距
                     ForEach(groupedMoments, id: \.0) { date, items in
                         ScatteredMonthSection(date: date, items: items) { item in
-                            self.fullScreenImage = FullScreenImage(
-                                image: UIImage(data: item.imageData!)!,
-                                isLivePhoto: item.isLivePhoto,
-                                videoData: item.livePhotoVideoData
-                            )
+                            guard let index = mediaList.firstIndex(where: { $0.id == item.id }) else {
+                                return
+                            }
+                            selectedIndex = index
+                            isFullScreenPresented = true
                         }
                     }
                 }
@@ -52,8 +61,27 @@ struct MomentGalleryView: View {
         .navigationTitle("时光墙")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
-        .fullScreenCover(item: $fullScreenImage) { wrapper in
-            FullScreenPhotoView(imageEntity: wrapper)
+        .onAppear { rebuildMediaList() }
+        .onChange(of: allMoments) { _, _ in rebuildMediaList() }
+        .fullScreenCover(isPresented: $isFullScreenPresented) {
+            MomentFullScreenCarouselView(
+                mediaList: mediaList,
+                currentIndex: $selectedIndex
+            )
+        }
+    }
+
+    private func rebuildMediaList() {
+        mediaList = allMoments.compactMap { item in
+            guard let data = item.imageData, let image = UIImage(data: data) else { return nil }
+            return MomentMedia(
+                id: item.id,
+                imageEntity: FullScreenImage(
+                    image: image,
+                    isLivePhoto: item.isLivePhoto,
+                    videoData: item.livePhotoVideoData
+                )
+            )
         }
     }
 }
@@ -226,4 +254,270 @@ struct SquishButtonStyle: ButtonStyle {
             .brightness(configuration.isPressed ? 0.05 : 0)  // 点击时稍微变亮
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
+}
+
+struct MomentFullScreenCarouselView: View {
+    let mediaList: [MomentMedia]
+    @Binding var currentIndex: Int
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var player: AVPlayer?
+    @State private var isPlaying = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var currentZoomScale: CGFloat = 1
+    @State private var isTransitioning = false
+    @State private var viewportWidth: CGFloat = 0
+
+    private var hasContent: Bool { !mediaList.isEmpty }
+
+    private var safeIndex: Int {
+        guard hasContent else { return 0 }
+        return min(max(currentIndex, 0), mediaList.count - 1)
+    }
+
+    private var imageEntity: FullScreenImage? {
+        guard hasContent else { return nil }
+        return mediaList[safeIndex].imageEntity
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if let imageEntity {
+                GeometryReader { geometry in
+                    ZoomableImageView(
+                        image: imageEntity.image,
+                        onZoomScaleChange: { scale in
+                            currentZoomScale = scale
+                        }
+                    )
+                        .id(mediaList[safeIndex].id)
+                        .ignoresSafeArea()
+                        .offset(x: dragOffset)
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 16)
+                                .onChanged { value in
+                                    guard !isTransitioning else { return }
+                                    guard currentZoomScale <= 1.02 else { return }
+                                    guard abs(value.translation.width) > abs(value.translation.height) else {
+                                        return
+                                    }
+                                    dragOffset = value.translation.width
+                                }
+                                .onEnded { value in
+                                    guard !isTransitioning else { return }
+                                    guard currentZoomScale <= 1.02 else {
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                                            dragOffset = 0
+                                        }
+                                        return
+                                    }
+                                    handleSwipeEnd(value: value, width: geometry.size.width)
+                                }
+                        )
+                        .onAppear { viewportWidth = geometry.size.width }
+                        .onChange(of: geometry.size.width) { _, newValue in
+                            viewportWidth = newValue
+                        }
+                }
+                .transition(.identity)
+            }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white.opacity(0.8))
+                            .padding()
+                            .padding(.top, 40)
+                    }
+                }
+                Spacer()
+            }
+
+            if let imageEntity, imageEntity.isLivePhoto && imageEntity.videoData != nil {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Button(action: { playLivePhoto(videoData: imageEntity.videoData) }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "livephoto.play")
+                                    .font(.system(size: 14))
+                                Text("实况")
+                                    .font(.system(size: 14, weight: .medium))
+                            }
+                            .foregroundColor(.white.opacity(0.9))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                        }
+                        .padding(.leading, 20)
+                        .padding(.bottom, 50)
+                        Spacer()
+                    }
+                }
+            }
+
+            if isPlaying, let player = player {
+                Color.black.ignoresSafeArea()
+                SimpleVideoPlayer(player: player)
+                    .ignoresSafeArea()
+                    .onAppear { player.play() }
+                    .onTapGesture { stopPlaying() }
+            }
+
+            ArrowKeyCatcher(
+                onLeft: showPrevious,
+                onRight: showNext,
+                onEscape: { dismiss() }
+            )
+            .frame(width: 0, height: 0)
+            .allowsHitTesting(false)
+        }
+        .onAppear {
+            if currentIndex >= mediaList.count { currentIndex = max(0, mediaList.count - 1) }
+        }
+        .onChange(of: safeIndex) { _, _ in
+            stopPlaying()
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                dragOffset = 0
+            }
+        }
+        .onDisappear { stopPlaying() }
+    }
+
+    private func showPrevious() {
+        guard !isTransitioning else { return }
+        guard hasContent, safeIndex > 0 else {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { dragOffset = 0 }
+            return
+        }
+        animateSlide(to: safeIndex - 1, direction: .rightToLeft)
+    }
+
+    private func showNext() {
+        guard !isTransitioning else { return }
+        guard hasContent, safeIndex < mediaList.count - 1 else {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { dragOffset = 0 }
+            return
+        }
+        animateSlide(to: safeIndex + 1, direction: .leftToRight)
+    }
+
+    private func handleSwipeEnd(value: DragGesture.Value, width: CGFloat) {
+        let threshold = max(60, width * 0.18)
+        let translation = value.translation.width
+
+        if translation <= -threshold, safeIndex < mediaList.count - 1 {
+            animateSlide(to: safeIndex + 1, direction: .leftToRight, width: width)
+        } else if translation >= threshold, safeIndex > 0 {
+            animateSlide(to: safeIndex - 1, direction: .rightToLeft, width: width)
+        } else {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                dragOffset = 0
+            }
+        }
+    }
+
+    private enum SlideDirection {
+        case leftToRight
+        case rightToLeft
+    }
+
+    private func animateSlide(to targetIndex: Int, direction: SlideDirection, width: CGFloat? = nil) {
+        guard !isTransitioning else { return }
+        let screenWidth = max(1, width ?? viewportWidth)
+        isTransitioning = true
+        stopPlaying()
+
+        let outOffset = direction == .leftToRight ? -screenWidth : screenWidth
+        let inOffset = -outOffset
+
+        withAnimation(.easeOut(duration: 0.18)) {
+            dragOffset = outOffset
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            currentIndex = targetIndex
+            dragOffset = inOffset
+            withAnimation(.easeOut(duration: 0.22)) {
+                dragOffset = 0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                isTransitioning = false
+            }
+        }
+    }
+
+    private func playLivePhoto(videoData: Data?) {
+        guard let data = videoData else { return }
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".mov")
+
+        do {
+            try data.write(to: tempURL)
+            let newPlayer = AVPlayer(url: tempURL)
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime, object: newPlayer.currentItem, queue: .main
+            ) { _ in
+                stopPlaying()
+            }
+            player = newPlayer
+            isPlaying = true
+        } catch {
+            print("播放失败: \(error)")
+        }
+    }
+
+    private func stopPlaying() {
+        player?.pause()
+        player = nil
+        isPlaying = false
+    }
+}
+
+private struct ArrowKeyCatcher: UIViewRepresentable {
+    let onLeft: () -> Void
+    let onRight: () -> Void
+    let onEscape: () -> Void
+
+    func makeUIView(context: Context) -> ArrowKeyResponderView {
+        let view = ArrowKeyResponderView()
+        view.onLeft = onLeft
+        view.onRight = onRight
+        view.onEscape = onEscape
+        DispatchQueue.main.async { view.becomeFirstResponder() }
+        return view
+    }
+
+    func updateUIView(_ uiView: ArrowKeyResponderView, context: Context) {
+        uiView.onLeft = onLeft
+        uiView.onRight = onRight
+        uiView.onEscape = onEscape
+        DispatchQueue.main.async { uiView.becomeFirstResponder() }
+    }
+}
+
+private final class ArrowKeyResponderView: UIView {
+    var onLeft: () -> Void = {}
+    var onRight: () -> Void = {}
+    var onEscape: () -> Void = {}
+
+    override var canBecomeFirstResponder: Bool { true }
+
+    override var keyCommands: [UIKeyCommand]? {
+        [
+            UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(left)),
+            UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(right)),
+            UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(escape)),
+        ]
+    }
+
+    @objc private func left() { onLeft() }
+    @objc private func right() { onRight() }
+    @objc private func escape() { onEscape() }
 }
