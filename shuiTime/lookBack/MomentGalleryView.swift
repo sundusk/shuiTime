@@ -267,6 +267,7 @@ struct MomentFullScreenCarouselView: View {
     @State private var currentZoomScale: CGFloat = 1
     @State private var isTransitioning = false
     @State private var viewportWidth: CGFloat = 0
+    private let slideSpacing: CGFloat = 28
 
     private var hasContent: Bool { !mediaList.isEmpty }
 
@@ -280,46 +281,62 @@ struct MomentFullScreenCarouselView: View {
         return mediaList[safeIndex].imageEntity
     }
 
+    private var adjacentIndex: Int? {
+        guard hasContent else { return nil }
+        if dragOffset < 0, safeIndex < mediaList.count - 1 { return safeIndex + 1 }
+        if dragOffset > 0, safeIndex > 0 { return safeIndex - 1 }
+        return nil
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             if let imageEntity {
                 GeometryReader { geometry in
-                    ZoomableImageView(
-                        image: imageEntity.image,
-                        onZoomScaleChange: { scale in
-                            currentZoomScale = scale
+                    ZStack {
+                        if let adjacentIndex {
+                            ZoomableImageView(image: mediaList[adjacentIndex].imageEntity.image)
+                                .ignoresSafeArea()
+                                .allowsHitTesting(false)
+                                .offset(x: adjacentImageOffset(width: geometry.size.width))
                         }
-                    )
-                        .id(mediaList[safeIndex].id)
-                        .ignoresSafeArea()
-                        .offset(x: dragOffset)
-                        .simultaneousGesture(
-                            DragGesture(minimumDistance: 16)
-                                .onChanged { value in
-                                    guard !isTransitioning else { return }
-                                    guard currentZoomScale <= 1.02 else { return }
-                                    guard abs(value.translation.width) > abs(value.translation.height) else {
-                                        return
-                                    }
-                                    dragOffset = value.translation.width
-                                }
-                                .onEnded { value in
-                                    guard !isTransitioning else { return }
-                                    guard currentZoomScale <= 1.02 else {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
-                                            dragOffset = 0
-                                        }
-                                        return
-                                    }
-                                    handleSwipeEnd(value: value, width: geometry.size.width)
-                                }
+
+                        ZoomableImageView(
+                            image: imageEntity.image,
+                            onZoomScaleChange: { scale in
+                                currentZoomScale = scale
+                            }
                         )
-                        .onAppear { viewportWidth = geometry.size.width }
-                        .onChange(of: geometry.size.width) { _, newValue in
-                            viewportWidth = newValue
-                        }
+                            .id(mediaList[safeIndex].id)
+                            .ignoresSafeArea()
+                            .offset(x: dragOffset)
+                    }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 16)
+                            .onChanged { value in
+                                guard !isTransitioning else { return }
+                                guard currentZoomScale <= 1.02 else { return }
+                                guard abs(value.translation.width) > abs(value.translation.height) else {
+                                    return
+                                }
+                                dragOffset = value.translation.width
+                            }
+                            .onEnded { value in
+                                guard !isTransitioning else { return }
+                                guard currentZoomScale <= 1.02 else {
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                                        dragOffset = 0
+                                    }
+                                    return
+                                }
+                                handleSwipeEnd(value: value, width: geometry.size.width)
+                            }
+                    )
+                    .onAppear { viewportWidth = geometry.size.width }
+                    .onChange(of: geometry.size.width) { _, newValue in
+                        viewportWidth = newValue
+                    }
                 }
                 .transition(.identity)
             }
@@ -383,9 +400,8 @@ struct MomentFullScreenCarouselView: View {
         }
         .onChange(of: safeIndex) { _, _ in
             stopPlaying()
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-                dragOffset = 0
-            }
+            dragOffset = 0
+            currentZoomScale = 1
         }
         .onDisappear { stopPlaying() }
     }
@@ -396,7 +412,7 @@ struct MomentFullScreenCarouselView: View {
             withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { dragOffset = 0 }
             return
         }
-        animateSlide(to: safeIndex - 1, direction: .rightToLeft)
+        animateSlide(to: safeIndex - 1, direction: .toPrevious)
     }
 
     private func showNext() {
@@ -405,7 +421,7 @@ struct MomentFullScreenCarouselView: View {
             withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { dragOffset = 0 }
             return
         }
-        animateSlide(to: safeIndex + 1, direction: .leftToRight)
+        animateSlide(to: safeIndex + 1, direction: .toNext)
     }
 
     private func handleSwipeEnd(value: DragGesture.Value, width: CGFloat) {
@@ -413,9 +429,9 @@ struct MomentFullScreenCarouselView: View {
         let translation = value.translation.width
 
         if translation <= -threshold, safeIndex < mediaList.count - 1 {
-            animateSlide(to: safeIndex + 1, direction: .leftToRight, width: width)
+            animateSlide(to: safeIndex + 1, direction: .toNext, width: width)
         } else if translation >= threshold, safeIndex > 0 {
-            animateSlide(to: safeIndex - 1, direction: .rightToLeft, width: width)
+            animateSlide(to: safeIndex - 1, direction: .toPrevious, width: width)
         } else {
             withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
                 dragOffset = 0
@@ -424,8 +440,15 @@ struct MomentFullScreenCarouselView: View {
     }
 
     private enum SlideDirection {
-        case leftToRight
-        case rightToLeft
+        case toNext
+        case toPrevious
+    }
+
+    private func adjacentImageOffset(width: CGFloat) -> CGFloat {
+        if dragOffset < 0 {
+            return dragOffset + width + slideSpacing
+        }
+        return dragOffset - width - slideSpacing
     }
 
     private func animateSlide(to targetIndex: Int, direction: SlideDirection, width: CGFloat? = nil) {
@@ -434,22 +457,17 @@ struct MomentFullScreenCarouselView: View {
         isTransitioning = true
         stopPlaying()
 
-        let outOffset = direction == .leftToRight ? -screenWidth : screenWidth
-        let inOffset = -outOffset
+        let travel = screenWidth + slideSpacing
+        let targetOffset = direction == .toNext ? -travel : travel
 
-        withAnimation(.easeOut(duration: 0.18)) {
-            dragOffset = outOffset
+        withAnimation(.easeOut(duration: 0.2)) {
+            dragOffset = targetOffset
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             currentIndex = targetIndex
-            dragOffset = inOffset
-            withAnimation(.easeOut(duration: 0.22)) {
-                dragOffset = 0
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                isTransitioning = false
-            }
+            dragOffset = 0
+            isTransitioning = false
         }
     }
 
