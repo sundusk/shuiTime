@@ -26,6 +26,10 @@ struct FullScreenPhotoView: View {
 
     @State private var player: AVPlayer?
     @State private var isPlaying = false
+    @State private var showPhotoActions = false
+    @State private var saveResultMessage = ""
+    @State private var showSaveResult = false
+    @State private var photoLibrarySaver: PhotoLibrarySaver?
 
     var body: some View {
         ZStack {
@@ -35,6 +39,14 @@ struct FullScreenPhotoView: View {
             // 缩放视图
             ZoomableImageView(image: imageEntity.image)
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in
+                            guard !isPlaying else { return }
+                            showPhotoActions = true
+                        }
+                )
 
             // 3. 关闭按钮 (右上角)
             VStack {
@@ -88,6 +100,17 @@ struct FullScreenPhotoView: View {
             }
         }
         .onDisappear { stopPlaying() }
+        .confirmationDialog("", isPresented: $showPhotoActions, titleVisibility: .hidden) {
+            Button("保存到相册") {
+                saveToPhotoLibrary()
+            }
+            Button("取消", role: .cancel) {}
+        }
+        .alert("保存结果", isPresented: $showSaveResult) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(saveResultMessage)
+        }
     }
 
     // 播放逻辑
@@ -116,6 +139,17 @@ struct FullScreenPhotoView: View {
         player?.pause()
         player = nil
         isPlaying = false
+    }
+
+    private func saveToPhotoLibrary() {
+        let saver = PhotoLibrarySaver()
+        saver.completion = { success, error in
+            saveResultMessage = success ? "已保存到相册" : "保存失败\(error.map { "：\($0.localizedDescription)" } ?? "")"
+            showSaveResult = true
+            photoLibrarySaver = nil
+        }
+        photoLibrarySaver = saver
+        saver.writeToPhotoAlbum(image: imageEntity.image)
     }
 }
 
@@ -188,5 +222,26 @@ struct SimpleVideoPlayer: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         uiViewController.player = player
+    }
+}
+
+final class PhotoLibrarySaver: NSObject {
+    var completion: ((Bool, Error?) -> Void)?
+
+    func writeToPhotoAlbum(image: UIImage) {
+        UIImageWriteToSavedPhotosAlbum(
+            image,
+            self,
+            #selector(saveCompleted(_:didFinishSavingWithError:contextInfo:)),
+            nil
+        )
+    }
+
+    @objc private func saveCompleted(
+        _ image: UIImage,
+        didFinishSavingWithError error: Error?,
+        contextInfo: UnsafeMutableRawPointer?
+    ) {
+        completion?(error == nil, error)
     }
 }

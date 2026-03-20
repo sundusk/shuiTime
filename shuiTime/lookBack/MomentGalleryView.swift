@@ -267,6 +267,10 @@ struct MomentFullScreenCarouselView: View {
     @State private var currentZoomScale: CGFloat = 1
     @State private var isTransitioning = false
     @State private var viewportWidth: CGFloat = 0
+    @State private var showPhotoActions = false
+    @State private var saveResultMessage = ""
+    @State private var showSaveResult = false
+    @State private var photoLibrarySaver: PhotoLibrarySaver?
     private let slideSpacing: CGFloat = 28
 
     private var hasContent: Bool { !mediaList.isEmpty }
@@ -311,6 +315,14 @@ struct MomentFullScreenCarouselView: View {
                             .id(mediaList[safeIndex].id)
                             .ignoresSafeArea()
                             .offset(x: dragOffset)
+                            .contentShape(Rectangle())
+                            .simultaneousGesture(
+                                LongPressGesture(minimumDuration: 0.5)
+                                    .onEnded { _ in
+                                        guard !isPlaying else { return }
+                                        showPhotoActions = true
+                                    }
+                            )
                     }
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 16)
@@ -404,6 +416,17 @@ struct MomentFullScreenCarouselView: View {
             currentZoomScale = 1
         }
         .onDisappear { stopPlaying() }
+        .confirmationDialog("", isPresented: $showPhotoActions, titleVisibility: .hidden) {
+            Button("保存到相册") {
+                saveCurrentPhotoToLibrary()
+            }
+            Button("取消", role: .cancel) {}
+        }
+        .alert("保存结果", isPresented: $showSaveResult) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(saveResultMessage)
+        }
     }
 
     private func showPrevious() {
@@ -495,6 +518,18 @@ struct MomentFullScreenCarouselView: View {
         player?.pause()
         player = nil
         isPlaying = false
+    }
+
+    private func saveCurrentPhotoToLibrary() {
+        guard let imageEntity else { return }
+        let saver = PhotoLibrarySaver()
+        saver.completion = { success, error in
+            saveResultMessage = success ? "已保存到相册" : "保存失败\(error.map { "：\($0.localizedDescription)" } ?? "")"
+            showSaveResult = true
+            photoLibrarySaver = nil
+        }
+        photoLibrarySaver = saver
+        saver.writeToPhotoAlbum(image: imageEntity.image)
     }
 }
 
