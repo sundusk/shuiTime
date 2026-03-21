@@ -14,8 +14,21 @@ struct DocumentPicker: UIViewControllerRepresentable {
     var onPick: (URL) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        var supportedTypes: [UTType] = [UTType.json]
+        for fileExtension in [
+            BackupManager.compressedFileExtension,
+            BackupManager.legacyCompressedFileExtension
+        ] {
+            if let compressedBackupType = UTType(
+                filenameExtension: fileExtension,
+                conformingTo: .data
+            ) {
+                supportedTypes.append(compressedBackupType)
+            }
+        }
+
         let picker = UIDocumentPickerViewController(
-            forOpeningContentTypes: [UTType.json],
+            forOpeningContentTypes: supportedTypes,
             asCopy: true
         )
         picker.delegate = context.coordinator

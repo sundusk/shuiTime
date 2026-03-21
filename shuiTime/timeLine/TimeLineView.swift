@@ -464,7 +464,7 @@ struct TimeLineView: View {
             notification.notificationOccurred(.success)
         } else {
             alertTitle = "恢复失败"
-            alertMessage = "导入数据时发生错误\n请确认文件格式正确"
+            alertMessage = "导入数据时发生错误\n请确认备份文件格式正确或压缩文件未损坏"
             showAlert = true
 
             // 失败震动反馈
@@ -518,7 +518,7 @@ struct TimeLineView: View {
             notification.notificationOccurred(.success)
         } else {
             alertTitle = "导入失败"
-            alertMessage = "覆盖导入时发生错误\n请确认文件格式正确"
+            alertMessage = "覆盖导入时发生错误\n请确认备份文件格式正确或压缩文件未损坏"
             showAlert = true
             
             let notification = UINotificationFeedbackGenerator()
@@ -1606,4 +1606,3 @@ struct TimelineDayCell: View {
         .frame(height: 44)
     }
 }
-
