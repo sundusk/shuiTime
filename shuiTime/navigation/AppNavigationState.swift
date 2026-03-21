@@ -15,4 +15,5 @@ final class AppNavigationState: ObservableObject {
     @Published var focusedTimelineItemID: UUID?
     @Published var focusedInspirationItemID: UUID?
     @Published var presentedMomentItemID: UUID?
+    @Published var pendingInspirationTag: String?
 }

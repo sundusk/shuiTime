@@ -237,6 +237,12 @@ struct InspirationView: View {
             .navigationDestination(item: $selectedTag) { tag in
                 TagFilterView(tagName: tag)
             }
+            .onAppear {
+                openPendingTagIfNeeded()
+            }
+            .onChange(of: navigationState.pendingInspirationTag) { _, _ in
+                openPendingTagIfNeeded()
+            }
             .toolbar(.hidden, for: .navigationBar)  // 隐藏系统导航栏
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(imageEntity: wrapper)
@@ -276,6 +282,12 @@ struct InspirationView: View {
                 proxy.scrollTo(focusedID, anchor: .center)
             }
         }
+    }
+
+    private func openPendingTagIfNeeded() {
+        guard let tag = navigationState.pendingInspirationTag else { return }
+        selectedTag = tag
+        navigationState.pendingInspirationTag = nil
     }
 }
 // CustomHeader, InspirationCardView, FlowLayout 保持不变...

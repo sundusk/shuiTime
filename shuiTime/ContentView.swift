@@ -62,21 +62,19 @@ struct ContentView: View {
 
             SideMenuView(
                 isOpen: $showSideMenu,
-                hasContentToday: !items.isEmpty,
-                showTags: true,
-                onTagSelected: nil,
-                onBackupTap: openBackupPanel,
-                onMenuSelected: { option in
+                onTagSelected: { tag in
+                    navigationState.pendingInspirationTag = nil
+
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        switch option {
-                        case .inspiration:
-                            navigationState.selectedTab = 1
-                        case .lookBack:
-                            navigationState.selectedTab = 2
-                        }
+                        navigationState.selectedTab = 1
                         showSideMenu = false
                     }
-                }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        navigationState.pendingInspirationTag = tag
+                    }
+                },
+                onBackupTap: openBackupPanel
             )
             .environmentObject(navigationState)
 
