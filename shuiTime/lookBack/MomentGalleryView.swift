@@ -38,9 +38,59 @@ struct MomentGalleryView: View {
 
     var body: some View {
         ZStack {
-            // 背景：深色桌面纹理感 (使用极深的灰/黑，避免纯黑死板)
-            Color(uiColor: .systemGroupedBackground)  // 或者使用自定义的深灰色
-                .ignoresSafeArea()
+            // 和“时光回顾”统一的弥散背景，让时光墙更有回望感
+            MeshGradientBackground()
+
+            // 更柔和的梦幻光感：远处的冷暖光晕 + 雾面罩层
+            ZStack {
+                RadialGradient(
+                    colors: [
+                        Color.cyan.opacity(0.16),
+                        Color.blue.opacity(0.08),
+                        .clear,
+                    ],
+                    center: .topLeading,
+                    startRadius: 20,
+                    endRadius: 380
+                )
+                .offset(x: -40, y: -80)
+
+                RadialGradient(
+                    colors: [
+                        Color.indigo.opacity(0.12),
+                        Color.pink.opacity(0.05),
+                        .clear,
+                    ],
+                    center: .bottomTrailing,
+                    startRadius: 30,
+                    endRadius: 420
+                )
+                .offset(x: 30, y: 120)
+
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.06),
+                        Color(uiColor: .systemGroupedBackground).opacity(0.16),
+                        Color(uiColor: .systemGroupedBackground).opacity(0.34),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                // 极轻的边缘收束，增强沉浸感但不做明显暗角
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.08),
+                        .clear,
+                        .clear,
+                        Color.black.opacity(0.10),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .blendMode(.softLight)
+            }
+            .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 60) {  // 月份之间的大间距
@@ -104,24 +154,49 @@ struct ScatteredMonthSection: View {
         return formatter.string(from: date)
     }
 
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            // 1. 背景大水印 (月份) - 增加一点艺术感
-            HStack(alignment: .lastTextBaseline, spacing: 0) {
-                Text(monthString)
-                    .font(.system(size: 120, weight: .black, design: .serif))
-                    .foregroundColor(Color.primary.opacity(0.05))
-                    .italic()
-                Text("月")
-                    .font(.system(size: 40, weight: .bold))
-                    .foregroundColor(Color.primary.opacity(0.03))
-                    .padding(.bottom, 20)
-            }
-            .offset(x: 20, y: -50)
-            .allowsHitTesting(false)
+    var monthAnchorLabel: String {
+        "\(monthString)月"
+    }
 
-            // 2. 散落照片墙
-            ScatteredGrid(items: items, onImageTap: onImageTap)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .lastTextBaseline, spacing: 10) {
+                Text(monthAnchorLabel)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.88))
+
+                Text(yearString)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary.opacity(0.7))
+                    .tracking(1.6)
+
+                Capsule()
+                    .fill(Color.primary.opacity(0.12))
+                    .frame(width: 36, height: 1)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 22)
+
+            ZStack(alignment: .topLeading) {
+                // 1. 背景大水印：保留氛围，但降低信息职责
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
+                    Text(monthString)
+                        .font(.system(size: 104, weight: .black, design: .serif))
+                        .foregroundColor(Color.primary.opacity(0.035))
+                        .italic()
+                    Text("月")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundColor(Color.primary.opacity(0.02))
+                        .padding(.bottom, 16)
+                }
+                .offset(x: 18, y: -26)
+                .allowsHitTesting(false)
+
+                // 2. 散落照片墙
+                ScatteredGrid(items: items, onImageTap: onImageTap)
+                    .padding(.top, 12)
+            }
         }
     }
 }
@@ -216,8 +291,38 @@ struct PhotoPaperCard: View {
                 // --- 卡片物理质感 ---
                 .background(Color.white)
                 .cornerRadius(4)  // 相纸整体微圆角 (相纸一般很尖，或者微圆)
+                // 0. 环境光：很轻地把照片从背景里托出来
+                .background {
+                    ZStack {
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(0.22),
+                                Color.cyan.opacity(0.10),
+                                .clear,
+                            ],
+                            center: .topLeading,
+                            startRadius: 8,
+                            endRadius: 120
+                        )
+                        .offset(x: -14, y: -18)
+                        .blur(radius: 10)
+
+                        RadialGradient(
+                            colors: [
+                                Color.blue.opacity(0.09),
+                                .clear,
+                            ],
+                            center: .center,
+                            startRadius: 24,
+                            endRadius: 150
+                        )
+                        .blur(radius: 18)
+                    }
+                }
                 // 1. 投影：模拟散落在桌面的悬浮感
                 .shadow(color: Color.black.opacity(0.15), radius: 6, x: 2, y: 4)
+                .shadow(color: Color.white.opacity(0.18), radius: 20, x: -6, y: -8)
+                .shadow(color: Color.cyan.opacity(0.08), radius: 26, x: 0, y: 10)
                 // 2. 内阴影/高光：模拟纸张厚度 (使用 overlay stroke 实现)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
