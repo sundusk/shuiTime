@@ -10,6 +10,7 @@ import SwiftUI
 
 struct InspirationView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var navigationState: AppNavigationState
 
     @Query(
         filter: #Predicate<TimelineItem> { $0.type == "inspiration" },
@@ -63,46 +64,59 @@ struct InspirationView: View {
                     }
                 } else {
                     // --- 列表状态 ---
-                    ScrollView {
-                        CustomHeader(onSearch: {
-                            print("DEBUG: 点击了搜索按钮")
-                            DispatchQueue.main.async {
-                                showSearchPage = true
-                            }
-                        })
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
-                        .padding(.bottom, 10)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            CustomHeader(onSearch: {
+                                print("DEBUG: 点击了搜索按钮")
+                                DispatchQueue.main.async {
+                                    showSearchPage = true
+                                }
+                            })
+                            .padding(.horizontal, 20)
+                            .padding(.top, 10)
+                            .padding(.bottom, 10)
 
-                        LazyVStack(spacing: 16) {
-                            ForEach(items) { item in
-                                InspirationCardView(
-                                    item: item,
-                                    onMenuTap: { selectedItem, anchorPoint in
-                                        self.itemForMenu = selectedItem
-                                        self.menuPosition = anchorPoint
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7))
-                                        {
-                                            self.showCustomMenu = true
+                            LazyVStack(spacing: 16) {
+                                ForEach(items) { item in
+                                    InspirationCardView(
+                                        item: item,
+                                        isFocused: item.id == navigationState.focusedInspirationItemID,
+                                        onMenuTap: { selectedItem, anchorPoint in
+                                            self.itemForMenu = selectedItem
+                                            self.menuPosition = anchorPoint
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7))
+                                            {
+                                                self.showCustomMenu = true
+                                            }
+                                        },
+                                        onTagTap: { tag in
+                                            self.selectedTag = tag
+                                        },
+                                        onImageTap: { item in
+                                            self.fullScreenImage = FullScreenImage(
+                                                image: UIImage(data: item.imageData!)!,
+                                                isLivePhoto: item.isLivePhoto,
+                                                videoData: item.livePhotoVideoData
+                                            )
                                         }
-                                    },
-                                    onTagTap: { tag in
-                                        self.selectedTag = tag
-                                    },
-                                    onImageTap: { item in
-                                        self.fullScreenImage = FullScreenImage(
-                                            image: UIImage(data: item.imageData!)!,
-                                            isLivePhoto: item.isLivePhoto,
-                                            videoData: item.livePhotoVideoData
-                                        )
-                                    }
-                                )
+                                    )
+                                    .id(item.id)
+                                }
                             }
+                            .padding(.horizontal)
+                            .padding(.bottom, 80)
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 80)
+                        .coordinateSpace(name: "InspirationScrollSpace")
+                        .onAppear {
+                            scrollToFocusedItem(using: proxy)
+                        }
+                        .onChange(of: navigationState.focusedInspirationItemID) { _, _ in
+                            scrollToFocusedItem(using: proxy)
+                        }
+                        .onChange(of: items.map(\.id)) { _, _ in
+                            scrollToFocusedItem(using: proxy)
+                        }
                     }
-                    .coordinateSpace(name: "InspirationScrollSpace")
                 }
 
                 // 悬浮加号按钮
@@ -250,6 +264,19 @@ struct InspirationView: View {
         itemToDelete = nil
         itemForMenu = nil
     }
+
+    private func scrollToFocusedItem(using proxy: ScrollViewProxy) {
+        guard
+            let focusedID = navigationState.focusedInspirationItemID,
+            items.contains(where: { $0.id == focusedID })
+        else { return }
+
+        DispatchQueue.main.async {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo(focusedID, anchor: .center)
+            }
+        }
+    }
 }
 // CustomHeader, InspirationCardView, FlowLayout 保持不变...
 
@@ -285,6 +312,7 @@ struct CustomHeader: View {
 // MARK: - 灵感卡片视图 (UI 优化版 - 支持高亮)
 struct InspirationCardView: View {
     let item: TimelineItem
+    var isFocused: Bool = false
 
     // 🔥 4. 新增：高亮文字参数 (可选)
     var highlightText: String? = nil
@@ -383,11 +411,18 @@ struct InspirationCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
-                    item.borderColorHex.flatMap { Color(hex: $0) } ?? Color.clear,
-                    lineWidth: item.borderColorHex != nil ? 3 : 0
+                    isFocused
+                        ? Color.blue.opacity(0.95)
+                        : item.borderColorHex.flatMap { Color(hex: $0) } ?? Color.clear,
+                    lineWidth: isFocused ? 2 : (item.borderColorHex != nil ? 3 : 0)
                 )
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .shadow(
+            color: isFocused ? Color.blue.opacity(0.22) : Color.black.opacity(0.05),
+            radius: isFocused ? 12 : 5,
+            x: 0,
+            y: isFocused ? 6 : 2
+        )
     }
 
     // 🔥 6. 判断是否高亮的辅助函数
@@ -591,4 +626,3 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
-

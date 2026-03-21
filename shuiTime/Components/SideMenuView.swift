@@ -26,6 +26,9 @@ struct SideMenuView: View {
     // 点击标签的回调
     var onTagSelected: ((String) -> Void)?
     
+    // 点击备份入口的回调
+    var onBackupTap: (() -> Void)?
+    
     // 点击菜单项的回调
     var onMenuSelected: ((SideMenuOption) -> Void)?
     
@@ -61,6 +64,14 @@ struct SideMenuView: View {
         let timelineItems = allItems.filter { $0.type == "timeline" }
         let uniqueDays = Set(timelineItems.map { Calendar.current.startOfDay(for: $0.timestamp) })
         return uniqueDays.count
+    }
+
+    var appVersionText: String {
+        let shortVersion =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1"
+        let buildNumber =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+        return "v\(shortVersion) (\(buildNumber))"
     }
     
     // MARK: - 热力图数据
@@ -149,6 +160,20 @@ struct SideMenuView: View {
                                 StatItemView(number: "\(dayCount)", title: "天")
                             }
                             .padding(.horizontal, 24)
+
+                            Divider().padding(.horizontal, 24)
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("数据管理")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 24)
+
+                                MenuButton(title: "数据备份与恢复", icon: "arrow.up.arrow.down.circle", color: .blue) {
+                                    onBackupTap?()
+                                }
+                            }
+                            .padding(.horizontal, 16)
                             
                             // 🔥 交换位置：后显示热力图
                             // --- 3. 热力图 ---
@@ -242,7 +267,7 @@ struct SideMenuView: View {
                     // 底部版本号
                     VStack {
                         Divider()
-                        Text("v1.1.0").font(.caption).foregroundColor(.gray.opacity(0.5)).padding()
+                        Text(appVersionText).font(.caption).foregroundColor(.gray.opacity(0.6)).padding()
                     }
                 }
                 .frame(width: 300)

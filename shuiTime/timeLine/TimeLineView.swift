@@ -14,11 +14,14 @@ import UIKit
 // MARK: - 主视图
 struct TimeLineView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var navigationState: AppNavigationState
+    var onMenuTap: () -> Void
 
     // 日期与状态管理
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()  // 🔥 日历当前显示的月份
     @State private var showCalendar: Bool = false
+    @State private var showGlobalSearch = false
     @State private var fullScreenImage: FullScreenImage?
     @State private var isInputExpanded: Bool = false
     @State private var ballOffset: CGSize = .zero
@@ -34,23 +37,12 @@ struct TimeLineView: View {
     @State private var selectedAsset: LivePhotoAsset?  // 选中的资源
     @State private var tempLivePhotoData: (videoData: Data?, isLive: Bool)?  // 临时存储用于替换流程
 
-    // 🔥 备份功能状态
-    @State private var showBackupSheet = false
-    @State private var showFilePicker = false
-    @State private var showOverwriteFilePicker = false  // 🔥 覆盖导入选择器
-    @State private var isExporting = false  // 导出进度状态
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
-    @State private var showAlert = false
-    @State private var showOverwriteConfirm = false  // 🔥 覆盖确认弹窗
-    @State private var pendingOverwriteURL: URL? = nil  // 🔥 待覆盖的文件URL
-    @State private var showExportPicker = false  // 🔥 导出选择器开关
-    @State private var exportURL: URL? = nil  // 🔥 待导出的文件URL
-
     // 获取今日数据用于计算额度
     @Query private var allItems: [TimelineItem]
 
     var body: some View {
+        let focusedTimelineItemID = _navigationState.wrappedValue.focusedTimelineItemID
+
         NavigationStack {
             // 🔥 1. 新增：GeometryReader 用于获取屏幕尺寸和安全区域
             GeometryReader { geo in
@@ -62,6 +54,7 @@ struct TimeLineView: View {
                     // 2. 列表层
                     TimelineListView(
                         date: selectedDate,
+                        focusedItemID: focusedTimelineItemID,
                         onImageTap: { imageWrapper in
                             fullScreenImage = imageWrapper
                         }
@@ -97,33 +90,6 @@ struct TimeLineView: View {
                         )
                         .zIndex(300)
                     }
-
-                    // 🔥 5. 导出进度加载动画
-                    if isExporting {
-                        ZStack {
-                            Color.black.opacity(0.4)
-                                .ignoresSafeArea()
-
-                            VStack(spacing: 20) {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(1.5)
-
-                                Text("正在导出备份...")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-
-                                Text("\(allItems.count) 条记录")
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                            .padding(30)
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(16)
-                        }
-                        .zIndex(400)
-                        .transition(.opacity)
-                    }
                 }
                 // 5. 增强版悬浮球 (带长按菜单 + 呼吸效果 + 🔥绿色新皮肤)
                 .overlay(alignment: .bottomTrailing) {
@@ -155,10 +121,10 @@ struct TimeLineView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // 🔥 左上角备份按钮
+                // 任务 1：先恢复侧边栏入口，备份功能后续再迁移
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { showBackupSheet = true }) {
-                        Image(systemName: "arrow.up.arrow.down.circle")
+                    Button(action: onMenuTap) {
+                        Image(systemName: "line.3.horizontal")
                             .foregroundColor(.blue)
                     }
                 }
@@ -173,11 +139,24 @@ struct TimeLineView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { withAnimation { selectedDate = Date() } }) {
-                        Text("今天").font(.subheadline)
+                    Button(action: { showGlobalSearch = true }) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.blue)
                     }
-                    .disabled(Calendar.current.isDateInToday(selectedDate))
                 }
+            }
+            .fullScreenCover(isPresented: $showGlobalSearch) {
+                GlobalSearchView()
+            }
+            .onAppear {
+                syncTimelineDate(from: navigationState.selectedTimelineDate, animated: false)
+                presentTargetedMomentIfNeeded()
+            }
+            .onChange(of: navigationState.selectedTimelineDate) { _, newValue in
+                syncTimelineDate(from: newValue, animated: true)
+            }
+            .onChange(of: navigationState.presentedMomentItemID) { _, _ in
+                presentTargetedMomentIfNeeded()
             }
             .sheet(isPresented: $showCalendar) {
                 // 🔥 使用自定义日历组件，支持蓝点标记
@@ -213,77 +192,6 @@ struct TimeLineView: View {
             }
             .fullScreenCover(item: $fullScreenImage) { wrapper in
                 FullScreenPhotoView(imageEntity: wrapper)
-            }
-            // 🔥 备份选项 Sheet
-            .sheet(isPresented: $showBackupSheet) {
-                BackupOptionsSheet(
-                    onExport: { handleExportBackup() },
-                    onImport: {
-                        // 先关闭当前 sheet，延迟后再打开文件选择器
-                        showBackupSheet = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            showFilePicker = true
-                        }
-                    },
-                    onImportOverwrite: {
-                        showBackupSheet = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            showOverwriteFilePicker = true
-                        }
-                    },
-                    onCleanDuplicates: { handleCleanDuplicates() },
-                    onDismiss: { showBackupSheet = false }
-                )
-                .presentationDetents([.height(480)])
-            }
-            // 🔥 文件选择器（合并导入）
-            .sheet(isPresented: $showFilePicker) {
-                DocumentPicker { url in
-                    handleImportBackup(from: url)
-                }
-            }
-            // 🔥 文件选择器（导出备份）
-            .sheet(isPresented: $showExportPicker) {
-                if let url = exportURL {
-                    DocumentExporter(itemURL: url) { success in
-                        if success {
-                            alertTitle = "导出成功"
-                            alertMessage = "备份文件已成功保存到指定位置"
-                        } else {
-                            alertTitle = "导出取消"
-                            alertMessage = "未保存备份文件"
-                        }
-                        showAlert = true
-                        exportURL = nil
-                    }
-                }
-            }
-            // 🔥 文件选择器（覆盖导入）
-            .sheet(isPresented: $showOverwriteFilePicker) {
-                DocumentPicker { url in
-                    pendingOverwriteURL = url
-                    showOverwriteConfirm = true
-                }
-            }
-            // 🔥 覆盖确认弹窗
-            .alert("确认覆盖?", isPresented: $showOverwriteConfirm) {
-                Button("取消", role: .cancel) {
-                    pendingOverwriteURL = nil
-                }
-                Button("确认覆盖", role: .destructive) {
-                    if let url = pendingOverwriteURL {
-                        handleImportOverwrite(from: url)
-                    }
-                    pendingOverwriteURL = nil
-                }
-            } message: {
-                Text("此操作将删除所有现有数据，并用备份文件中的数据替换。\n\n此操作不可撤销！")
-            }
-            // 🔥 提示框
-            .alert(alertTitle, isPresented: $showAlert) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text(alertMessage)
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -415,114 +323,40 @@ struct TimeLineView: View {
         }
     }
 
-    // MARK: - 备份恢复逻辑
-
-    private func handleExportBackup() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-
-        showBackupSheet = false
-        withAnimation { isExporting = true }
-
-        // 导出所有数据
-        if let fileURL = BackupManager.shared.exportData(items: allItems) {
-            withAnimation { isExporting = false }
-            
-            // 记录导出的本地 URL 并触发选择器
-            self.exportURL = fileURL
-            self.showExportPicker = true
-
-            // 成功震动反馈
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.success)
-        } else {
-            withAnimation { isExporting = false }
-            alertTitle = "备份失败"
-            alertMessage = "导出数据时发生错误，请稍后重试"
-            showAlert = true
-
-            // 失败震动反馈
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.error)
+    private func syncTimelineDate(from date: Date, animated: Bool) {
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        let update = {
+            selectedDate = normalizedDate
+            currentMonth = normalizedDate
         }
 
-        showBackupSheet = false
-    }
-
-    private func handleImportBackup(from url: URL) {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-
-        // 导入数据
-        if let count = BackupManager.shared.importData(from: url, context: modelContext) {
-            alertTitle = "恢复成功"
-            alertMessage = "成功导入 \(count) 条记录\n\n数据已添加到时间线中"
-            showAlert = true
-
-            // 成功震动反馈
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.success)
+        if animated {
+            withAnimation {
+                update()
+            }
         } else {
-            alertTitle = "恢复失败"
-            alertMessage = "导入数据时发生错误\n请确认备份文件格式正确或压缩文件未损坏"
-            showAlert = true
-
-            // 失败震动反馈
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.error)
-        }
-
-        showFilePicker = false
-    }
-    
-    // 🔥 清理重复数据
-    private func handleCleanDuplicates() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-        
-        showBackupSheet = false
-        
-        let deletedCount = BackupManager.shared.removeDuplicates(context: modelContext)
-        
-        if deletedCount > 0 {
-            alertTitle = "清理完成"
-            alertMessage = "已删除 \(deletedCount) 条重复记录"
-            showAlert = true
-            
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.success)
-        } else {
-            alertTitle = "无重复数据"
-            alertMessage = "当前没有发现重复的记录"
-            showAlert = true
-            
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.warning)
+            update()
         }
     }
-    
-    // 🔥 覆盖导入
-    private func handleImportOverwrite(from url: URL) {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.impactOccurred()
-        
-        showBackupSheet = false
-        showOverwriteFilePicker = false
-        
-        if let count = BackupManager.shared.importDataWithOverwrite(from: url, context: modelContext) {
-            alertTitle = "覆盖完成"
-            alertMessage = "已删除原有数据，成功导入 \(count) 条记录"
-            showAlert = true
-            
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.success)
-        } else {
-            alertTitle = "导入失败"
-            alertMessage = "覆盖导入时发生错误\n请确认备份文件格式正确或压缩文件未损坏"
-            showAlert = true
-            
-            let notification = UINotificationFeedbackGenerator()
-            notification.notificationOccurred(.error)
+
+    private func presentTargetedMomentIfNeeded() {
+        guard let targetID = navigationState.presentedMomentItemID else { return }
+        guard let targetItem = allItems.first(where: { $0.id == targetID && $0.type == "moment" }),
+            let imageData = targetItem.imageData,
+            let image = UIImage(data: imageData)
+        else {
+            navigationState.presentedMomentItemID = nil
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) {
+            guard navigationState.presentedMomentItemID == targetID else { return }
+            fullScreenImage = FullScreenImage(
+                image: image,
+                isLivePhoto: targetItem.isLivePhoto,
+                videoData: targetItem.livePhotoVideoData
+            )
+            navigationState.presentedMomentItemID = nil
         }
     }
 }
@@ -850,12 +684,14 @@ struct ReplaceMomentSheet: View {
 struct TimelineListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [TimelineItem]
+    let focusedItemID: UUID?
     @State private var itemToEdit: TimelineItem?
     @State private var itemToDelete: TimelineItem?
     @State private var showDeleteAlert = false
     var onImageTap: (FullScreenImage) -> Void
 
-    init(date: Date, onImageTap: @escaping (FullScreenImage) -> Void) {
+    init(date: Date, focusedItemID: UUID?, onImageTap: @escaping (FullScreenImage) -> Void) {
+        self.focusedItemID = focusedItemID
         self.onImageTap = onImageTap
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -872,54 +708,65 @@ struct TimelineListView: View {
         if items.isEmpty {
             EmptyStateView().frame(maxWidth: .infinity, maxHeight: .infinity).padding(.bottom, 80)
         } else {
-            List {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                    TimelineRowView(
-                        item: item, isLast: index == items.count - 1, onImageTap: onImageTap
-                    )
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .listRowBackground(Color.clear)  // 🔥 清除行背景，显示弥散渐变
-                    .swipeActions(edge: .trailing) {
-                        // 删除功能
-                        Button(role: .destructive) {
-                            itemToDelete = item
-                            showDeleteAlert = true
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-
-                        // 修改功能 (非瞬影)
-                        if item.type != "moment" {
-                            Button {
-                                itemToEdit = item
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        TimelineRowView(
+                            item: item,
+                            isLast: index == items.count - 1,
+                            isHighlighted: item.id == focusedItemID,
+                            onImageTap: onImageTap
+                        )
+                        .id(item.id)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                itemToDelete = item
+                                showDeleteAlert = true
                             } label: {
-                                Label("修改", systemImage: "pencil")
+                                Label("删除", systemImage: "trash")
                             }
-                            .tint(.blue)
+
+                            if item.type != "moment" {
+                                Button {
+                                    itemToEdit = item
+                                } label: {
+                                    Label("修改", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+                            }
                         }
                     }
+                    Color.clear.frame(height: 240)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
-
-                // 底部占位
-                Color.clear.frame(height: 100)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)  // 🔥 清除底部占位行背景
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)  // 适配 iOS 16+ 背景
-            .scrollClipDisabled(false)
-            .sheet(item: $itemToEdit) { item in EditTimelineView(item: item) }
-            .alert("确认删除?", isPresented: $showDeleteAlert) {
-                Button("取消", role: .cancel) { itemToDelete = nil }
-                Button("删除", role: .destructive) {
-                    if let item = itemToDelete { deleteItem(item) }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .scrollClipDisabled(false)
+                .sheet(item: $itemToEdit) { item in EditTimelineView(item: item) }
+                .alert("确认删除?", isPresented: $showDeleteAlert) {
+                    Button("取消", role: .cancel) { itemToDelete = nil }
+                    Button("删除", role: .destructive) {
+                        if let item = itemToDelete { deleteItem(item) }
+                    }
+                } message: {
+                    if let item = itemToDelete, item.type == "moment" {
+                        Text("删除这张瞬影后，将自动恢复今日的一个拍摄额度。")
+                    } else {
+                        Text("删除后将无法恢复这条记录。")
+                    }
                 }
-            } message: {
-                if let item = itemToDelete, item.type == "moment" {
-                    Text("删除这张瞬影后，将自动恢复今日的一个拍摄额度。")
-                } else {
-                    Text("删除后将无法恢复这条记录。")
+                .onAppear {
+                    scrollToFocusedItem(using: proxy)
+                }
+                .onChange(of: focusedItemID) { _, _ in
+                    scrollToFocusedItem(using: proxy)
+                }
+                .onChange(of: items.map(\.id)) { _, _ in
+                    scrollToFocusedItem(using: proxy)
                 }
             }
         }
@@ -932,12 +779,37 @@ struct TimelineListView: View {
         }
         itemToDelete = nil
     }
+
+    private func scrollToFocusedItem(using proxy: ScrollViewProxy) {
+        guard let focusedItemID,
+            let targetIndex = items.firstIndex(where: { $0.id == focusedItemID })
+        else { return }
+
+        let anchor: UnitPoint
+        if targetIndex >= max(items.count - 2, 0) {
+            anchor = .bottom
+        } else if targetIndex >= max(items.count / 2, 1) {
+            anchor = .center
+        } else {
+            anchor = .top
+        }
+
+        let retryDelays: [Double] = [0, 0.12, 0.28, 0.5]
+        for delay in retryDelays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    proxy.scrollTo(focusedItemID, anchor: anchor)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - 单行组件 (TimelineRowView - 修复删除崩溃版)
 struct TimelineRowView: View {
     let item: TimelineItem
     let isLast: Bool
+    let isHighlighted: Bool
     var onImageTap: ((FullScreenImage) -> Void)?
 
     // 🔥 修复核心：缓存所有需要访问的属性，防止删除动画时访问已销毁的数据库对象
@@ -976,6 +848,27 @@ struct TimelineRowView: View {
                 range: NSRange(location: 0, length: cachedContent.utf16.count), withTemplate: "")
             ?? cachedContent
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    init(
+        item: TimelineItem,
+        isLast: Bool,
+        isHighlighted: Bool,
+        onImageTap: ((FullScreenImage) -> Void)? = nil
+    ) {
+        self.item = item
+        self.isLast = isLast
+        self.isHighlighted = isHighlighted
+        self.onImageTap = onImageTap
+
+        let initialImage = item.imageData.flatMap { UIImage(data: $0) }
+        _cachedImage = State(initialValue: initialImage)
+        _cachedTimestamp = State(initialValue: item.timestamp)
+        _cachedType = State(initialValue: item.type)
+        _cachedContent = State(initialValue: item.content)
+        _cachedIsLivePhoto = State(initialValue: item.isLivePhoto)
+        _cachedVideoData = State(initialValue: item.livePhotoVideoData)
+        _isDataLoaded = State(initialValue: true)
     }
 
     var body: some View {
@@ -1174,8 +1067,23 @@ struct TimelineRowView: View {
                     .background(
                         isMoment ? Color.clear : Color(uiColor: .secondarySystemGroupedBackground)
                     )
+                    .overlay {
+                        if isHighlighted {
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.blue.opacity(0.95), lineWidth: 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.blue.opacity(isMoment ? 0.08 : 0.05))
+                                )
+                        }
+                    }
                     .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(isMoment ? 0 : 0.05), radius: 2, x: 0, y: 1)
+                    .shadow(
+                        color: isHighlighted ? Color.blue.opacity(0.22) : Color.black.opacity(isMoment ? 0 : 0.05),
+                        radius: isHighlighted ? 10 : 2,
+                        x: 0,
+                        y: isHighlighted ? 4 : 1
+                    )
                     .contentShape(Rectangle())
                     .padding(.bottom, 20)
                 }
