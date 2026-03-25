@@ -389,7 +389,7 @@ struct InspirationCardView: View {
                                 let isHighlighted = shouldHighlight(tag)
                                 Button(action: { onTagTap?(tag) }) {
                                     Text(tag)
-                                        .font(.body)
+                                        .font(.caption)
                                         .foregroundColor(.blue)
                                         .fontWeight(isHighlighted ? .black : .regular)
                                         .padding(.vertical, 2).padding(.horizontal, 6)
