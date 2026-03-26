@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct InspirationView: View {
     @Environment(\.modelContext) private var modelContext
@@ -406,12 +407,10 @@ struct InspirationCardView: View {
                     // 纯文本 - 使用普通 Text，自动换行
                     if !plainText.isEmpty {
                         let isHighlighted = shouldHighlight(plainText)
-                        Text(plainText)
-                            .font(.body)
-                            .foregroundColor(isHighlighted ? .blue : .primary)
-                            .fontWeight(isHighlighted ? .bold : .regular)
-                            .background(isHighlighted ? Color.yellow.opacity(0.2) : Color.clear)
-                            .fixedSize(horizontal: false, vertical: true) // 允许换行
+                        ExpandableInspirationText(
+                            text: plainText,
+                            isHighlighted: isHighlighted
+                        )
                     }
                 }
             }
@@ -493,6 +492,98 @@ struct InspirationCardView: View {
             }
         }
         return segments
+    }
+}
+
+private struct ExpandableInspirationText: View {
+    let text: String
+    let isHighlighted: Bool
+
+    @State private var isExpanded = false
+    @State private var measuredWidth: CGFloat = 0
+    @State private var shouldShowToggle = false
+
+    private let collapsedLineLimit = 3
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            contentText(lineLimit: isExpanded ? nil : collapsedLineLimit)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            updateToggleVisibility(for: geo.size.width)
+                        }
+                        .onChange(of: geo.size.width) { _, newWidth in
+                            updateToggleVisibility(for: newWidth)
+                        }
+                }
+            )
+
+            if shouldShowToggle {
+                Button(action: {
+                    isExpanded.toggle()
+                }) {
+                    HStack(spacing: 4) {
+                        Text(isExpanded ? "收起" : "展开")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 10)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func contentText(lineLimit: Int?) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundColor(isHighlighted ? .blue : .primary)
+            .fontWeight(isHighlighted ? .bold : .regular)
+            .background(isHighlighted ? Color.yellow.opacity(0.2) : Color.clear)
+            .lineLimit(lineLimit)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func updateToggleVisibility(for width: CGFloat) {
+        let roundedWidth = floor(width)
+        guard roundedWidth > 0 else { return }
+
+        if abs(roundedWidth - measuredWidth) > 0.5 {
+            measuredWidth = roundedWidth
+        }
+
+        let nextShouldShowToggle = requiresExpansionButton(for: roundedWidth)
+        if shouldShowToggle != nextShouldShowToggle {
+            shouldShowToggle = nextShouldShowToggle
+        }
+
+        if !nextShouldShowToggle && isExpanded {
+            isExpanded = false
+        }
+    }
+
+    private func requiresExpansionButton(for width: CGFloat) -> Bool {
+        let font = UIFont.preferredFont(forTextStyle: .subheadline)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byWordWrapping
+
+        let boundingRect = NSString(string: text).boundingRect(
+            with: CGSize(width: width, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [
+                .font: font,
+                .paragraphStyle: paragraphStyle
+            ],
+            context: nil
+        )
+
+        let collapsedHeight = ceil(font.lineHeight * CGFloat(collapsedLineLimit))
+        return ceil(boundingRect.height) > collapsedHeight + 1
     }
 }
 
