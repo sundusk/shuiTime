@@ -511,19 +511,22 @@ struct FloatingBallMenu: View {
                         // [拖拽模式] 保持之前的边界限制逻辑
                         let proposedHeight = dragStartOffset.height + value.translation.height
 
-                        let bottomPadding: CGFloat = 100
-                        let ballHeight: CGFloat = 56
+                        let initialBottomPadding: CGFloat = 100
+                        let ballSize: CGFloat = 56
+                        let ballRadius = ballSize / 2
                         let navBarHeight: CGFloat = 44
-                        let tabBarHeight: CGFloat = 60
+                        let tabBarHeight: CGFloat = 49
+                        let topSpacing: CGFloat = 6
+                        let bottomSpacing: CGFloat = 6
 
-                        let initialTopY = containerSize.height - bottomPadding - ballHeight
-                        let targetTopY = safeAreaInsets.top + navBarHeight
-                        let topLimit = targetTopY - initialTopY
-
-                        let initialBottomY = containerSize.height - bottomPadding
-                        let targetBottomY =
+                        let initialCenterY = containerSize.height - initialBottomPadding - ballRadius
+                        let minCenterY = safeAreaInsets.top + navBarHeight + topSpacing + ballRadius
+                        let maxCenterY =
                             containerSize.height - safeAreaInsets.bottom - tabBarHeight
-                        let bottomLimit = max(0, targetBottomY - initialBottomY)
+                            - bottomSpacing - ballRadius
+
+                        let topLimit = minCenterY - initialCenterY
+                        let bottomLimit = max(topLimit, maxCenterY - initialCenterY)
 
                         let constrainedHeight = min(max(proposedHeight, topLimit), bottomLimit)
 
