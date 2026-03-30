@@ -379,6 +379,8 @@ struct FloatingBallMenu: View {
     @State private var isBreathing = false
     @State private var isFloating = false  // 🌊 上下浮动动画
     @State private var isAlive = false      // 💓 微微呼吸缩放
+    @State private var blinkProgress: CGFloat = 0.0
+    @State private var blinkTask: Task<Void, Never>?
 
     // 🔥 1. 计算属性：判断当前球是否在屏幕右侧
     private var isOnRightSide: Bool {
@@ -462,13 +464,21 @@ struct FloatingBallMenu: View {
                         .opacity(isBreathing ? 0.0 : 0.3)
                 }
 
-                Image("xiaoshui")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 56, height: 56)
-                    .scaleEffect(isAlive ? 1.05 : 1.0)  // 💓 微微呼吸
-                    .offset(y: isFloating ? -3 : 3)     // 🌊 上下浮动
-                    .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
+                ZStack {
+                    Image("xiaoshui")
+                        .resizable()
+                        .scaledToFit()
+                        .opacity(1.0 - blinkProgress)
+
+                    Image("biyan")
+                        .resizable()
+                        .scaledToFit()
+                        .opacity(blinkProgress)
+                }
+                .frame(width: 56, height: 56)
+                .scaleEffect(isAlive ? 1.05 : 1.0)  // 💓 微微呼吸
+                .offset(y: isFloating ? -3 : 3)     // 🌊 上下浮动
+                .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 5)
             }
             .scaleEffect(isExpanded ? 0.9 : 1.0)
         }
@@ -578,6 +588,46 @@ struct FloatingBallMenu: View {
             // 💓 启动呼吸动画（微微缩放）
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
                 isAlive = true
+            }
+            startBlinkLoop()
+        }
+        .onDisappear {
+            blinkTask?.cancel()
+            blinkTask = nil
+        }
+    }
+
+    private func startBlinkLoop() {
+        blinkTask?.cancel()
+        blinkTask = Task {
+            while !Task.isCancelled {
+                let waitSeconds = Double.random(in: 2.8...5.5)
+                try? await Task.sleep(for: .seconds(waitSeconds))
+                if Task.isCancelled { break }
+                let blinkCount = Double.random(in: 0...1) < 0.28 ? 2 : 1
+                await performBlinkSequence(count: blinkCount)
+            }
+        }
+    }
+
+    @MainActor
+    private func performBlinkSequence(count: Int) async {
+        guard !isExpanded else { return }
+
+        for index in 0..<count {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                blinkProgress = 1.0
+            }
+            try? await Task.sleep(for: .milliseconds(180))
+
+            withAnimation(.easeInOut(duration: 0.22)) {
+                blinkProgress = 0.0
+            }
+            try? await Task.sleep(for: .milliseconds(220))
+
+            if index < count - 1 {
+                try? await Task.sleep(for: .milliseconds(180))
+                if isExpanded { return }
             }
         }
     }
